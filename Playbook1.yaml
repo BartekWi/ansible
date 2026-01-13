@@ -22,6 +22,7 @@
           - lvm2
         state: present
         update_cache: yes
+      check_mode: no
     - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
       community.general.lvg:
         vg: "{{ vg_name }}"
