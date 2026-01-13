@@ -13,21 +13,19 @@
     # ---------------------------------------------------------
     # 1. KONFIGURACJA LVM I RAID1 [cite: 12, 13]
     # ---------------------------------------------------------
-    - name: Zaktualizuj cache menedżera pakietów (wymuszone)
+    - name: Zainstaluj lvm2 (i zaktualizuj cache)
       apt:
+        name: lvm2
+        state: present
         update_cache: yes
-        cache_valid_time: 0
     - name: Zainstaluj lvm2 i ufw (wymagane pakiety)
       apt:
         name:
-          - lvm2
           - ufw
           - curl
           - tar
-        state: latest
+        state: present
         update_cache: yes
-    - name: Odśwież fakty Ansible (aby wykryć nowe binarki)
-      setup:
     - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
       community.general.lvg:
         vg: "{{ vg_name }}"
