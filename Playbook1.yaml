@@ -13,13 +13,21 @@
     # ---------------------------------------------------------
     # 1. KONFIGURACJA LVM I RAID1 [cite: 12, 13]
     # ---------------------------------------------------------
+    - name: Zaktualizuj cache apt i zainstaluj lvm2
+      apt:
+        name: lvm2
+        state: present
+        update_cache: yes
+      register: lvm_install
+    - name: Odśwież fakty po instalacji
+      setup:
+      when: lvm_install.changed
     - name: Zainstaluj lvm2 i ufw (wymagane pakiety)
       apt:
         name:
           - ufw
           - curl
           - tar
-          - lvm2
         state: present
         update_cache: yes
     - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
