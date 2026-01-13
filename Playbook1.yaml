@@ -22,8 +22,6 @@
           - lvm2
         state: present
         update_cache: yes
-    - name: Zresetuj połączenie, aby załadować nowe ścieżki (PATH) do poleceń LVM
-      meta: reset_connection
     - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
       community.general.lvg:
         vg: "{{ vg_name }}"
