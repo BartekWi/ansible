@@ -36,6 +36,7 @@
         lv: "{{ lv_name }}"
         size: 100%FREE
         opts: "--type raid1"
+        shrink: false
       # Opcja --type raid1 realizuje wymóg pracy w logice RAID1 
 
     - name: Sformatuj wolumin systemem plików ext4
