@@ -67,7 +67,7 @@
         mode: '0755'
         state: file
     - name: Instaluj usługę AdGuard Home
-      command: "{{ mount_point }}/AdGuardHome -s install"
+      command: "{{ mount_point }}/AdGuardHome/AdGuardHome -s install"
       args:
         chdir: "{{ mount_point }}"
         creates: /etc/systemd/system/AdGuardHome.service
