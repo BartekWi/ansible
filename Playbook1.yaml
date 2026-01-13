@@ -1,6 +1,6 @@
 ---
 - name: Instalacja i konfiguracja AdGuard Home (Playbook 1)
-  hosts: all  # W Semaphore UI ograniczysz to do grupy 'AGH' lub konkretnego hosta
+  hosts: agh  # W Semaphore UI ograniczysz to do grupy 'AGH' lub konkretnego hosta
   become: yes
   vars:
     # Definicja dysków do RAID1 (sprawdź czy nazwy sdb/sdc są poprawne dla Twojego VM)
