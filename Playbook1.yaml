@@ -63,7 +63,7 @@
         # --strip-components=1 usuwa katalog nadrzędny, aby pliki trafiły bezpośrednio do /adguardhome
     - name: Nadaj uprawnienia wykonywania dla pliku binarnego AdGuardHome
       file:
-        path: "{{ mount_point }}/AdGuardHome"
+        path: "{{ mount_point }}/AdGuardHome/AdGuardHome"
         mode: '0755'
         state: file
     - name: Instaluj usługę AdGuard Home
