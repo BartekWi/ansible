@@ -26,6 +26,8 @@
           - tar
         state: latest
         update_cache: yes
+    - name: Odśwież fakty Ansible (aby wykryć nowe binarki)
+      setup:
     - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
       community.general.lvg:
         vg: "{{ vg_name }}"
