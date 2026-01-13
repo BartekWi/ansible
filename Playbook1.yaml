@@ -14,100 +14,12 @@
     # ---------------------------------------------------------
     # 1. KONFIGURACJA LVM I RAID1
     # ---------------------------------------------------------
-    - name: Zainstaluj wymagane pakiety (lvm2, ufw, tar)
-      apt:
-        name:
-          - lvm2
-          - ufw
-          - curl
-          - tar
+  - name: Zainstaluj wymagane pakiety (lvm2, ufw, tar)
+    apt:
+      name:
+        - lvm2
+        - ufw
+        - curl
+        - tar
         state: present
         update_cache: yes
-
-    - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
-      community.general.lvg:
-        vg: "{{ vg_name }}"
-        pvs:
-          - "{{ disk_1 }}"
-          - "{{ disk_2 }}"
-
-    - name: Utwórz Wolumin Logiczny (LV) w trybie RAID1
-      community.general.lvol:
-        vg: "{{ vg_name }}"
-        lv: "{{ lv_name }}"
-        size: 100%FREE
-        opts: "--type raid1"
-
-    - name: Sformatuj wolumin systemem plików ext4
-      filesystem:
-        fstype: ext4
-        dev: "/dev/{{ vg_name }}/{{ lv_name }}"
-
-    - name: Zamontuj wolumin w katalogu /adguardhome
-      mount:
-        path: "{{ mount_point }}"
-        src: "/dev/{{ vg_name }}/{{ lv_name }}"
-        fstype: ext4
-        state: mounted
-
-    # ---------------------------------------------------------
-    # 2. INSTALACJA ADGUARD HOME
-    # ---------------------------------------------------------
-    - name: Pobierz i rozpakuj AdGuard Home
-      unarchive:
-        src: https://static.adguard.com/adguardhome/release/AdGuardHome_linux_amd64.tar.gz
-        dest: "{{ mount_point }}"
-        remote_src: yes
-        extra_opts:
-          - --strip-components=1
-      # --strip-components=1 usuwa folder nadrzędny, wrzucając pliki prosto do /adguardhome
-
-    - name: Instaluj usługę AdGuard Home
-      command: "{{ mount_point }}/AdGuardHome -s install"
-      args:
-        chdir: "{{ mount_point }}"
-        creates: /etc/systemd/system/AdGuardHome.service
-
-    - name: Upewnij się, że usługa AdGuard Home jest uruchomiona
-      service:
-        name: AdGuardHome
-        state: started
-        enabled: yes
-
-    # ---------------------------------------------------------
-    # 3. KONFIGURACJA ZAPORY OGNIOWEJ (UFW)
-    # ---------------------------------------------------------
-    - name: Domyślnie zablokuj ruch przychodzący
-      community.general.ufw:
-        default: deny
-        direction: incoming
-
-    - name: Zezwól na ruch wychodzący
-      community.general.ufw:
-        default: allow
-        direction: outgoing
-
-    - name: Zezwól na SSH (port 22)
-      community.general.ufw:
-        rule: allow
-        port: '22'
-        proto: tcp
-
-    - name: Zezwól na DNS (port 53 TCP/UDP)
-      community.general.ufw:
-        rule: allow
-        port: '53'
-
-    - name: Zezwól na Panel Web AdGuard (porty 3000, 80, 443)
-      community.general.ufw:
-        rule: allow
-        port: "{{ item }}"
-        proto: tcp
-      loop:
-        - '3000'
-        - '80'
-        - '443'
-
-    - name: Włącz zaporę ogniową (UFW)
-      community.general.ufw:
-        state: enabled
