@@ -48,6 +48,7 @@
         path: "{{ mount_point }}"
         src: "/dev/{{ vg_name }}/{{ lv_name }}"
         fstype: ext4
+        opts: defaults
         state: mounted
 
     # ---------------------------------------------------------
@@ -60,10 +61,6 @@
         remote_src: yes
         extra_opts: [--strip-components=1] 
         # --strip-components=1 usuwa katalog nadrzędny, aby pliki trafiły bezpośrednio do /adguardhome
-    - name: Nadaj uprawnienia wykonywania dla pliku binarnego AdGuardHome
-      file:
-        path: "{{ mount_point }}/AdGuardHome"
-        mode: '0755'
     - name: Instaluj usługę AdGuard Home
       command: "{{ mount_point }}/AdGuardHome -s install"
       args:
