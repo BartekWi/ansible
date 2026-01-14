@@ -63,11 +63,14 @@
         $sizeHDD = ($tierSizes | Where-Object FriendlyName -eq "HDD_Tier").TierSizeMax
 
         # 6. Utworzenie Dysku Wirtualnego korzystającego z obu warstw
+         
         $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
-                                 -FriendlyName "TieredDisk_{{ nazwisko }}" `
+                                 -FriendlyName "DataDisk" `
                                  -StorageTiers @($tierSSD, $tierHDD) `
                                  -StorageTierSizes @($sizeSSD, $sizeHDD) `
-                                 -WriteCacheSize 0
+                                 -ResiliencySettingName Mirror `
+                                 -UseMaximumSize `
+                                 -ProvisioningType Fixed                       
 
         # 7. Inicjalizacja i formatowanie (ReFS, litera F:) 
         $vDisk | Initialize-Disk -PartitionStyle GPT -PassThru | `
