@@ -59,7 +59,7 @@
         
         # Tworzymy dysk w trybie Mirror (wymaga min. 2 dysków w każdej warstwie, co mamy spełnione)
         $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
-                                 -FriendlyName "TieredDisk_{{ nazwisko }}" `
+                                 -FriendlyName "TieredDisk_Wiecek" `
                                  -ResiliencySettingName Mirror `
                                  -UseMaximumSize `
                                  -ProvisioningType Fixed
