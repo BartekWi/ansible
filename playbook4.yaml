@@ -39,13 +39,7 @@
         # 3. HACK dla maszyn wirtualnych: Ręczne oznaczanie typów mediów
         # Ponieważ wszystkie dyski mają 20GB, bierzemy pierwsze 2 jako SSD, resztę jako HDD.
         # Bez tego Windows w VM widzi je jako "Unspecified" i nie zrobi Tieringu.
-        
-        Write-Host "Konfigurowanie typów mediów..."
-        $ssdDisks = $disks[0..1]
-        $hddDisks = $disks[2..3]
 
-        $ssdDisks | Set-PhysicalDisk -MediaType SSD
-        $hddDisks | Set-PhysicalDisk -MediaType HDD
 
         # 4. Utworzenie Puli Dyskowej (z rozpoznanymi już typami SSD/HDD)
         $poolName = "StoragePool_Wiecek"
