@@ -14,7 +14,7 @@
     backup_filename: "agh_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.tar.gz"
 
   tasks:
-  - name: Sprawdź czy host jest dostępny (port 22)
+    - name: Sprawdź czy host jest dostępny (port 22)
       delegate_to: localhost
       wait_for:
         host: "{{ ansible_host }}"
