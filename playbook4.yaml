@@ -83,7 +83,7 @@
     # -------------------------------------------------------------------
     # ZADANIE 1.5: Czekanie na pojawienie się dysku (Fix na Twój błąd)
     # -------------------------------------------------------------------
-    - name: Czekaj na dostępność dysku F:
+    - name: Czekaj na dostępność dysku F
       ansible.windows.win_shell: |
         $retry = 0
         while (-not (Test-Path F:\)) {
@@ -127,7 +127,7 @@
     # -------------------------------------------------------------------
     # [cite_start]ZADANIE 3: Katalogi i Udziały Sieciowe [cite: 15, 16]
     # -------------------------------------------------------------------
-    - name: Utwórz katalog '{{ share_path }}' na dysku F:
+    - name: Utwórz katalog '{{ share_path }}' na dysku F
       ansible.windows.win_file:
         path: "{{ share_path }}"
         state: directory
