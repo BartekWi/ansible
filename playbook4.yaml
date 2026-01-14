@@ -36,7 +36,7 @@
         }
 
         # 3. Utworzenie Puli Dyskowej
-        $poolName = "StoragePool_{{ nazwisko }}"
+        $poolName = "StoragePool_Wiecek"
         New-StoragePool -FriendlyName $poolName `
                         -StorageSubsystemFriendlyName "Windows Storage*" `
                         -PhysicalDisks $disks | Out-Null
@@ -65,7 +65,7 @@
 
         # 6. Utworzenie Dysku Wirtualnego korzystającego z obu warstw
         $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
-                                 -FriendlyName "TieredDisk_{{ nazwisko }}" `
+                                 -FriendlyName "TieredDisk_Wiecek" `
                                  -StorageTiers @($tierSSD, $tierHDD) `
                                  -StorageTierSizes @($sizeSSD, $sizeHDD) `
                                  -WriteCacheSize 0
