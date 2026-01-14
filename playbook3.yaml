@@ -1,7 +1,8 @@
 ---
 - name: Playbook 3 - Kopia zapasowa AdGuard Home
-  hosts: agh_servers  # Upewnij się, że ta nazwa grupy pasuje do Twojego inventory w Semaphore
+  hosts: agh  # Upewnij się, że ta nazwa grupy pasuje do Twojego inventory w Semaphore
   become: true
+  gather_facts: no
   vars:
     # Ścieżka instalacji AdGuard Home (dostosuj, jeśli zainstalowałeś w innym miejscu)
     agh_dir: "/adguardhome/AdGuardHome"
@@ -13,6 +14,32 @@
     backup_filename: "agh_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.tar.gz"
 
   tasks:
+  - name: Sprawdź czy host jest dostępny (port 22)
+      delegate_to: localhost
+      wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        timeout: 5
+        state: started
+      ignore_errors: yes
+      register: host_status
+      become: no # Sprawdzanie portu nie wymaga roota na localhost
+
+    # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
+    - name: Powiadomienie o BŁĘDZIE - Host niedostępny (Discord)
+      community.general.discord:
+        webhook_id: "{{ discord_id }}"
+        webhook_token: "{{ discord_token }}"
+        username: Semaphore
+        content: "❌ [CRITICAL] Nie można połączyć się z {{ inventory_hostname }}. Serwer jest wyłączony lub sieć nie działa."
+      delegate_to: localhost
+      become: no
+      when: host_status.failed
+    - name: Zakończ playbook jeśli host nie odpowiada
+      meta: end_play
+      when: host_status.failed  
+    - name: Zbierz fakty o systemie (ręcznie)
+      setup:
     - name: Rozpoczęcie procedury backupu (Block)
       block:
         - name: Upewnij się, że katalog tymczasowy istnieje na serwerze AGH
