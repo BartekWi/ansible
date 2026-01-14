@@ -5,15 +5,15 @@
 
   tasks:
     - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
-    environment: "DEBIAN_FRONTEND: noninteractive"
-    apt:
-      upgrade: safe
-      update_cache: yes
-      autoclean: true
-      clean: true
-      autoremove: true
-      dpkg_options: 'force-confold,force-confdef'
-    register: upgradeapt
+      environment: "DEBIAN_FRONTEND: noninteractive"
+      apt:
+        upgrade: safe
+        update_cache: yes
+        autoclean: true
+        clean: true
+        autoremove: true
+        dpkg_options: 'force-confold,force-confdef'
+      register: upgradeapt
 
    - name: Powiadomienie do discord
      community.general.discord:
