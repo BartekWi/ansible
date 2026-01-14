@@ -1,61 +1,59 @@
 ---
-- name: Kopia zapasowa AdGuard Home
-  hosts: AGH_serwery  # Upewnij się, że ta nazwa pasuje do Twojego Inventory w Semaphore/Ansible
+- name: Playbook 3 - Kopia zapasowa AdGuard Home
+  hosts: agh_servers  # Upewnij się, że ta nazwa grupy pasuje do Twojego inventory w Semaphore
   become: true
   vars:
-    # Ścieżka instalacji AdGuard Home na serwerze zdalnym
-    adh_path: "adguardhome//AdGuardHome/
-    # Katalog tymczasowy na serwerze zdalnym
-    remote_temp_path: "/tmp"
-    # Katalog docelowy na serwerze Ansible (kontrolnym)
-    local_backup_path: "/var/backups/agh_backups"
-    # Znacznik czasu dla unikalności nazwy pliku
-    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
-    backup_filename: "agh_backup_{{ timestamp }}.tar.gz"
+    # Ścieżka instalacji AdGuard Home (dostosuj, jeśli zainstalowałeś w innym miejscu)
+    agh_dir: "/adguardhome/AdGuardHome"
+    # Katalog tymczasowy na serwerze AGH
+    remote_temp_dir: "/tmp/agh_backups"
+    # Katalog docelowy na serwerze Ansible (gdzie mają trafiać kopie)
+    local_backup_dir: "/var/backups/agh_remote_backups"
+    # Format nazwy pliku z datą
+    backup_filename: "agh_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.tar.gz"
 
   tasks:
-    - name: Sprawdź czy katalog AdGuard Home istnieje
-      stat:
-        path: "{{ adh_path }}"
-      register: adh_dir_check
+    - name: Rozpoczęcie procedury backupu (Block)
+      block:
+        - name: Upewnij się, że katalog tymczasowy istnieje na serwerze AGH
+          ansible.builtin.file:
+            path: "{{ remote_temp_dir }}"
+            state: directory
+            mode: '0700'
 
-    - name: Przerwij jeśli AdGuard Home nie jest zainstalowany w wskazanej ścieżce
-      fail:
-        msg: "Katalog {{ adh_path }} nie istnieje. Sprawdź ścieżkę instalacji."
-      when: not adh_dir_check.stat.exists
+        - name: Zatrzymaj usługę AdGuard Home (dla spójności danych)
+          ansible.builtin.service:
+            name: AdGuardHome
+            state: stopped
 
-    # 1. Tworzenie archiwum na serwerze zdalnym (AGH)
-    - name: Utwórz archiwum z danymi i konfiguracją AdGuard Home
-      archive:
-        path:
-          - "{{ adh_path }}/AdGuardHome.yaml"
-          - "{{ adh_path }}/data"
-        dest: "{{ remote_temp_path }}/{{ backup_filename }}"
-        format: gz
-      register: archive_result
+        - name: Stwórz archiwum z plikami konfiguracyjnymi i danymi
+          community.general.archive:
+            path:
+              - "{{ agh_dir }}/AdGuardHome.yaml"
+              - "{{ agh_dir }}/data"
+            dest: "{{ remote_temp_dir }}/{{ backup_filename }}"
+            format: gz
 
-    # 2. Przygotowanie miejsca na serwerze Ansible (localhost)
-    - name: Upewnij się, że lokalny katalog na kopie zapasowe istnieje
-      delegate_to: localhost
-      become: false # Zależy od uprawnień użytkownika ansible na maszynie kontrolnej
-      file:
-        path: "{{ local_backup_path }}"
-        state: directory
-        mode: '0755'
+        - name: Uruchom ponownie usługę AdGuard Home
+          ansible.builtin.service:
+            name: AdGuardHome
+            state: started
 
-    # 3. Pobieranie pliku na serwer Ansible
-    - name: Pobierz kopię zapasową na serwer Ansible
-      fetch:
-        src: "{{ remote_temp_path }}/{{ backup_filename }}"
-        dest: "{{ local_backup_path }}/"
-        flat: yes
+        - name: Pobierz kopię zapasową na serwer Ansible (Control Node)
+          ansible.builtin.fetch:
+            src: "{{ remote_temp_dir }}/{{ backup_filename }}"
+            dest: "{{ local_backup_dir }}/"
+            flat: yes
 
-    # 4. Sprzątanie (Idempotentność i porządek)
-    - name: Usuń tymczasowe archiwum z serwera zdalnego
-      file:
-        path: "{{ remote_temp_path }}/{{ backup_filename }}"
-        state: absent
+        - name: Usuń tymczasowe archiwum z serwera AGH (sprzątanie)
+          ansible.builtin.file:
+            path: "{{ remote_temp_dir }}/{{ backup_filename }}"
+            state: absent
 
-    - name: Wyświetl potwierdzenie
-      debug:
-        msg: "Kopia zapasowa zapisana w: {{ local_backup_path }}/{{ backup_filename }}"
+      rescue:
+        - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
+          community.general.discord:
+            webhook_id: "{{ discord_id }}"
+            webhook_token: "{{ discord_token }}"
+            username: Semaphore
+            content: "BŁĄD: Nie udało się wykonać kopii zapasowej AdGuard Home na serwerze {{ inventory_hostname }}."
