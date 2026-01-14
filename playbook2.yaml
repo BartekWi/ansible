@@ -4,26 +4,23 @@
   connection: local
   gather_facts: no
   tasks:
-    - name: Sprawdź czy port SSH jest otwarty
-      wait_for:
-        host: agh
-        port: 22
-        state: started
+    # 1. Sprawdzenie czy host żyje (bez przerywania playbooka)
+    - name: Sprawdź dostępność hosta (timeout 5s)
+      wait_for_connection:
         timeout: 5
-      register: ssh_check
       ignore_errors: yes
+      register: host_status
 
-    - name: Powiadomienie o BŁĘDZIE POŁĄCZENIA (Discord)
+    # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
+    - name: Powiadomienie o BŁĘDZIE POŁĄCZENIA (Host Offline)
       community.general.discord:
-        webhook_id: "{{ discord_id }}"
-        webhook_token: "{{ discord_tokenk }}"
+        webhook_id: "1460982920536653905" # Zmień to!
+        webhook_token: "TWOJ_NOWY_TOKEN"    # Zmień to!
         username: Semaphore
-        content: "🛑 [BŁĄD KRYTYCZNY] Serwer agh jest WYŁĄCZONY lub niedostępny! Aktualizacja niemożliwa."
-      when: ssh_check is failed
-
-    - name: Zakończ playbook jeśli host nie odpowiada
-      meta: end_play
-      when: ssh_check is failed
+        content: "⛔ [BŁĄD KRYTYCZNY] Host {{ inventory_hostname }} jest OFFLINE. Aktualizacja niemożliwa."
+      delegate_to: localhost  # Wykonaj to na serwerze Semaphore, nie na celu
+      become: no
+      when: host_status is failed
 - name: Playbook do aktualizacji Debian
   hosts: agh
   become: yes
