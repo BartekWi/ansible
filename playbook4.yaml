@@ -48,7 +48,7 @@
         $hddDisks | Set-PhysicalDisk -MediaType HDD
 
         # 4. Utworzenie Puli Dyskowej (z rozpoznanymi już typami SSD/HDD)
-        $poolName = "StoragePool_{{ nazwisko }}"
+        $poolName = "StoragePool_Wiecek"
         New-StoragePool -FriendlyName $poolName `
                         -StorageSubsystemFriendlyName "Windows Storage*" `
                         -PhysicalDisks $disks | Out-Null
