@@ -5,6 +5,7 @@
 
   tasks:
     - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
+      environment: "DEBIAN_FRONTEND: noninteractive"
       apt:
         upgrade: safe
         update_cache: yes
