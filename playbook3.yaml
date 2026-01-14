@@ -4,7 +4,7 @@
   become: true
   vars:
     # Ścieżka instalacji AdGuard Home na serwerze zdalnym
-    adh_path: "/opt/AdGuardHome"
+    adh_path: "adguardhome//AdGuardHome/
     # Katalog tymczasowy na serwerze zdalnym
     remote_temp_path: "/tmp"
     # Katalog docelowy na serwerze Ansible (kontrolnym)
