@@ -26,13 +26,14 @@
             Write-Host "Wolumin F: już istnieje. Pomijam konfigurację."
             Exit 0
         }
+        $disks = Get-PhysicalDisk -CanPool $true
         $hddDisks = $disks[0..1]
         $ssdDisks = $disks[2..($disks.Count-1)]
 
         $ssdDisks | Set-PhysicalDisk -MediaType SSD
         $hddDisks | Set-PhysicalDisk -MediaType HDD
         # Pobranie dostępnych dysków fizycznych
-        $disks = Get-PhysicalDisk -CanPool $true
+        
 
         if ($disks.Count -lt 4) {
             Write-Error "Znaleziono mniej niż 4 dyski do puli. Sprawdź konfigurację VM."
