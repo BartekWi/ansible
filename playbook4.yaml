@@ -3,12 +3,9 @@
   hosts: all  # Lub nazwa grupy z inventory, np. 'windows'
   gather_facts: no
   vars:
-    # ZMIEŃ TO NA SWOJE NAZWISKO
-    nazwisko: "Kowalski" 
-    
     # Nazwy dynamiczne
-    group_name: "Kierownicy_{{ nazwisko }}"
-    share_name: "Projekty_{{ nazwisko }}"
+    group_name: "Kierownicy_Wiecek"
+    share_name: "Projekty_Wiecek"
     share_path: "F:\\Projekty"
 
   tasks:
