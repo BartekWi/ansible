@@ -12,7 +12,7 @@
 
     # -------------------------------------------------------------------
     # ZADANIE 1: Konfiguracja Puli Dyskowej, Tieringu i Woluminu (F:)
-    [cite_start]# [cite: 11, 12, 13, 14]
+  
     # Używamy PowerShell, ponieważ natywne moduły Ansible mają ograniczone
     # wsparcie dla Storage Tiering i Storage Spaces w konfiguracji mieszanej.
     # -------------------------------------------------------------------
@@ -58,7 +58,7 @@
 
     # -------------------------------------------------------------------
     # ZADANIE 2: Zarządzanie Użytkownikami i Grupami
-    [cite_start]# 
+   
     # -------------------------------------------------------------------
     - name: Utwórz użytkownika Marek Romanek
       ansible.windows.win_user:
@@ -90,7 +90,7 @@
 
     # -------------------------------------------------------------------
     # ZADANIE 3: Katalogi i Udziały Sieciowe
-    [cite_start]# [cite: 15, 16]
+    
     # -------------------------------------------------------------------
     - name: Utwórz katalog '{{ share_path }}' na dysku F
       ansible.windows.win_file:
@@ -117,7 +117,7 @@
 
     # -------------------------------------------------------------------
     # ZADANIE 4: Instalacja Aplikacji (Winget)
-    [cite_start]# 
+    
     # -------------------------------------------------------------------
     - name: Zainstaluj aplikacje przez Winget (7zip, Firefox, BIND/dig)
       ansible.windows.win_shell: |
@@ -134,7 +134,7 @@
 
     # -------------------------------------------------------------------
     # ZADANIE 5: Rejestr - Blokada usuwania drukarek
-    [cite_start]# 
+ 
     # -------------------------------------------------------------------
     - name: Konfiguracja Rejestru - Zapobieganie usuwaniu drukarek
       ansible.windows.win_regedit:
