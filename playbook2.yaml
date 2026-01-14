@@ -10,7 +10,7 @@
       wait_for:
         host: "{{ inventory_hostname }}"
         port: 22
-        timeout: 5
+        timeout: 15
         state: started
       ignore_errors: yes
       register: host_status
