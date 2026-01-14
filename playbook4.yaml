@@ -16,7 +16,7 @@
     # Używamy PowerShell, ponieważ natywne moduły Ansible mają ograniczone
     # wsparcie dla Storage Tiering i Storage Spaces w konfiguracji mieszanej.
     # -------------------------------------------------------------------
-    - name: Konfiguracja Storage Pool, Tiering (SSD/HDD) i Woluminu ReFS F:
+    - name: Konfiguracja Storage Pool, Tiering (SSD/HDD) i Woluminu ReFS F
       ansible.windows.win_shell: |
         # Sprawdzenie czy dysk F już istnieje (idempotentność)
         if (Get-Volume -DriveLetter F -ErrorAction SilentlyContinue) {
@@ -92,7 +92,7 @@
     # ZADANIE 3: Katalogi i Udziały Sieciowe
     [cite_start]# [cite: 15, 16]
     # -------------------------------------------------------------------
-    - name: Utwórz katalog '{{ share_path }}' na dysku F:
+    - name: Utwórz katalog '{{ share_path }}' na dysku F
       ansible.windows.win_file:
         path: "{{ share_path }}"
         state: directory
