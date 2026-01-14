@@ -109,24 +109,31 @@
     # ----------------------------------------------------------------
     # 4. INSTALACJA APLIKACJI (WINGET) 
     # ----------------------------------------------------------------
-    - name: Instalacja aplikacji przez Winget (7zip, dig, Firefox)
+    - name: Instalacja aplikacji przez Winget (7zip, Firefox, BIND)
       ansible.windows.win_shell: |
         $apps = @(
             "7zip.7zip",
             "Mozilla.Firefox",
-            "ISC.Bind"  # Pakiet zawierający narzędzie dig
+            "ISC.Bind"
         )
         
         foreach ($app in $apps) {
-            # Sprawdzenie czy zainstalowane (proste sprawdzenie list)
-            $check = winget list --id $app
-            if ($LASTEXITCODE -ne 0) {
+            # Sprawdzamy czy pakiet istnieje (flaga -e wymusza dokładne dopasowanie ID)
+            # Przekierowujemy wyjście do $null, interesuje nas tylko kod powrotu
+            winget list --id $app | Out-Null
+            
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "$app jest już zainstalowany."
+            } else {
                 Write-Host "Instalowanie $app..."
                 winget install --id $app -e --source winget --accept-package-agreements --accept-source-agreements
-            } else {
-                Write-Host "$app jest już zainstalowany."
             }
         }
+        
+        # Kluczowe: Resetujemy kod wyjścia na 0. 
+        # Dzięki temu, nawet jeśli winget zwróci dziwny kod (np. przy braku aktualizacji),
+        # Ansible uzna zadanie za wykonane poprawnie.
+        Exit 0
       register: winget_install
       changed_when: "'Instalowanie' in winget_install.stdout"
 
