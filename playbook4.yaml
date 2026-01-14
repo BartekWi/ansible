@@ -33,7 +33,7 @@
         }
 
         # Utworzenie Puli
-        $poolName = "StoragePool_{{ nazwisko }}"
+        $poolName = "StoragePool_Wiecek"
         New-StoragePool -FriendlyName $poolName -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $disks | Out-Null
 
         # W środowisku wirtualnym typ mediów (SSD/HDD) często jest "Unspecified".
