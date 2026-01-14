@@ -18,7 +18,7 @@
         webhook_id: "{{ discord_id }}"
         webhook_token: "{{ discord_tokenk }}"
         username: Semaphore
-        content: "🛑 [BŁĄD KRYTYCZNY] Serwer {{ target_host }} jest WYŁĄCZONY lub niedostępny! Aktualizacja niemożliwa."
+        content: "🛑 [BŁĄD KRYTYCZNY] Serwer agh jest WYŁĄCZONY lub niedostępny! Aktualizacja niemożliwa."
       when: ssh_check is failed
 
     - name: Zakończ playbook jeśli host nie odpowiada
