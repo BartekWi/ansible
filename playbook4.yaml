@@ -76,7 +76,7 @@
         password: "Password123!" # W produkcji używać Vault!
         state: present
         groups:
-          - [cite_start]"{{ group_name }}" # Dodanie do grupy 
+          - "{{ group_name }}" # Dodanie do grupy 
           - "Users"
 
     - name: Utworzenie użytkownika Jacek Gula 
