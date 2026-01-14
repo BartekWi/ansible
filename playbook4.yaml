@@ -1,6 +1,6 @@
 ---
 - name: Konfiguracja Serwera Windows - Część 3 (Storage, Users, Apps)
-  hosts: all  # Docelowo powinna to być grupa/host WINSRV_{nazwisko}
+  hosts: windows  # Docelowo powinna to być grupa/host WINSRV_{nazwisko}
   gather_facts: no
   vars:
     # ZMIEŃ TO NAZWISKO NA WŁASNE
