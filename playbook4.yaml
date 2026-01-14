@@ -15,7 +15,7 @@
 
   tasks:
     # ----------------------------------------------------------------
-    # 1. KONFIGURACJA STORAGE (Pula, Tiering, Mirror, ReFS) [cite: 10, 11, 12, 13, 14]
+    # 1. KONFIGURACJA STORAGE (Pula, Tiering, Mirror, ReFS) 
     # ----------------------------------------------------------------
     - name: Konfiguracja Puli Dyskowej, Storage Tiers i Wolumenu ReFS (Mirror)
       ansible.windows.win_shell: |
@@ -34,10 +34,10 @@
             Exit 1
         }
 
-        # Utworzenie Puli Dyskowej [cite: 11]
+        # Utworzenie Puli Dyskowej 
         $Pool = New-StoragePool -FriendlyName "{{ pool_name }}" -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $PhysicalDisks
         
-        # Utworzenie Storage Tiers (SSD i HDD) [cite: 12]
+        # Utworzenie Storage Tiers (SSD i HDD) 
         # Uwaga: Windows Server 2025 może automatycznie wykrywać media, ale wymuszamy definicję
         $SSDTier = New-StorageTier -StoragePoolFriendlyName "{{ pool_name }}" -FriendlyName "SSDTier" -MediaType SSD -ResiliencySettingName Mirror
         $HDDTier = New-StorageTier -StoragePoolFriendlyName "{{ pool_name }}" -FriendlyName "HDDTier" -MediaType HDD -ResiliencySettingName Mirror
@@ -46,7 +46,7 @@
         # W środowisku produkcyjnym wymagałoby to precyzyjnych wyliczeń wolnego miejsca w puli
         # Tutaj zakładamy użycie maksymalnej dostępnej przestrzeni w ramach tierów
         
-        # Utworzenie Wirtualnego Dysku z Tieringiem i Mirroringiem [cite: 13, 14]
+        # Utworzenie Wirtualnego Dysku z Tieringiem i Mirroringiem
         # Używamy -UseMaximumSize tam gdzie możliwe lub dużych wartości, które system dopasuje
         $VirtualDisk = New-VirtualDisk -StoragePoolFriendlyName "{{ pool_name }}" `
             -FriendlyName "vDisk_{{ nazwisko }}" `
@@ -62,41 +62,41 @@
       changed_when: "'Dysk F już istnieje' not in storage_config.stdout"
 
     # ----------------------------------------------------------------
-    # 2. ZARZĄDZANIE UŻYTKOWNIKAMI I GRUPAMI [cite: 14, 15]
+    # 2. ZARZĄDZANIE UŻYTKOWNIKAMI I GRUPAMI 
     # ----------------------------------------------------------------
-    - [cite_start]name: Utworzenie grupy zabezpieczeń Kierownicy_{{ nazwisko }} [cite: 15]
+    - name: Utworzenie grupy zabezpieczeń Kierownicy_{{ nazwisko }} 
       ansible.windows.win_group:
         name: "{{ group_name }}"
         state: present
         description: "Grupa dla kierowników projektu"
 
-    - [cite_start]name: Utworzenie użytkownika Marek Romanek [cite: 14]
+    - name: Utworzenie użytkownika Marek Romanek 
       ansible.windows.win_user:
         name: "Marek Romanek"
         password: "Password123!" # W produkcji używać Vault!
         state: present
         groups:
-          - [cite_start]"{{ group_name }}" # Dodanie do grupy [cite: 15]
+          - [cite_start]"{{ group_name }}" # Dodanie do grupy 
           - "Users"
 
-    - [cite_start]name: Utworzenie użytkownika Jacek Gula [cite: 14]
+    - name: Utworzenie użytkownika Jacek Gula 
       ansible.windows.win_user:
         name: "Jacek Gula"
         password: "Password123!"
         state: present
         groups:
-          - [cite_start]"{{ group_name }}" # Dodanie do grupy [cite: 15]
+          - "{{ group_name }}" # Dodanie do grupy 
           - "Users"
 
     # ----------------------------------------------------------------
     # 3. KATALOGI I UDZIAŁY SIECIOWE [cite: 15, 16]
     # ----------------------------------------------------------------
-    - [cite_start]name: Utworzenie katalogu F:\Projekty [cite: 15]
+    - name: Utworzenie katalogu F:\Projekty 
       ansible.windows.win_file:
         path: "{{ share_path }}"
         state: directory
 
-    - [cite_start]name: Udostępnienie katalogu jako Projekty_{{ nazwisko }} z uprawnieniami [cite: 16]
+    - name: Udostępnienie katalogu jako Projekty_{{ nazwisko }} z uprawnieniami 
       ansible.windows.win_share:
         name: "{{ share_name }}"
         path: "{{ share_path }}"
