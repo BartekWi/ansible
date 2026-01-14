@@ -9,7 +9,7 @@
     # Katalog tymczasowy na serwerze AGH
     remote_temp_dir: "/tmp/agh_backups"
     # Katalog docelowy na serwerze Ansible (gdzie mają trafiać kopie)
-    local_backup_dir: "/var/backups/agh_remote_backups"
+    local_backup_dir: "/tmp/agh_remote_backups"
     # Format nazwy pliku z datą
     backup_filename: "agh_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.tar.gz"
 
