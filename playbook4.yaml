@@ -19,50 +19,58 @@
     # -------------------------------------------------------------------
     # ZADANIE 1: Konfiguracja Puli Dyskowej z wymuszeniem typów SSD/HDD
     # -------------------------------------------------------------------
-    - name: Konfiguracja Storage Pool, Tiering (SSD/HDD) i Woluminu ReFS F
+    - name: Konfiguracja Storage Pool, Wymuszenie MediaType i Woluminu
       ansible.windows.win_shell: |
-        # Sprawdzenie czy dysk F już istnieje (idempotentność)
+        # 1. Sprawdzenie czy konfiguracja już istnieje (Idempotentność)
         if (Get-Volume -DriveLetter F -ErrorAction SilentlyContinue) {
-            Write-Host "Wolumin F: już istnieje. Pomijam konfigurację."
+            Write-Host "Wolumin F: już istnieje. Kończę działanie."
             Exit 0
         }
-        $disks = Get-PhysicalDisk -CanPool $true
-        $hddDisks = $disks[0..1]
-        $ssdDisks = $disks[2..3]
 
-        $ssdDisks | Set-PhysicalDisk -MediaType SSD
-        $hddDisks | Set-PhysicalDisk -MediaType HDD
-        # Pobranie dostępnych dysków fizycznych
-        
+        # 2. Pobranie dostępnych surowych dysków
+        $disks = Get-PhysicalDisk -CanPool $true | Sort-Object DeviceId
 
+        # Sprawdzenie czy mamy wymagane 4 dyski (zgodnie z wymogami projektu)
         if ($disks.Count -lt 4) {
-            Write-Error "Znaleziono mniej niż 4 dyski do puli. Sprawdź konfigurację VM."
+            Write-Error "BŁĄD: Znaleziono tylko $($disks.Count) dysków 'CanPool'. Wymagane są 4 (2xSSD, 2xHDD)."
             Exit 1
         }
 
-        # Utworzenie Puli
-        $poolName = "StoragePool_Wiecek"
-        New-StoragePool -FriendlyName $poolName -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $disks | Out-Null
-
-        # W środowisku wirtualnym typ mediów (SSD/HDD) często jest "Unspecified".
-        # Poniższy fragment próbuje wymusić wykrycie lub ustawić tiery, jeśli media są rozpoznane.
-        # W prostym labie wirtualnym bez S2D, tiering może wymagać ręcznego tagowania mediów.
-        # Poniżej standardowa procedura tworzenia wirtualnego dysku z Mirrorem.
+        # 3. HACK dla maszyn wirtualnych: Ręczne oznaczanie typów mediów
+        # Ponieważ wszystkie dyski mają 20GB, bierzemy pierwsze 2 jako SSD, resztę jako HDD.
+        # Bez tego Windows w VM widzi je jako "Unspecified" i nie zrobi Tieringu.
         
-        # Utworzenie wirtualnego dysku (Mirror) wykorzystującego całą przestrzeń
-        # UWAGA: Pełny Tiering SSD/HDD wymaga, aby hypervisor poprawnie zgłaszał typy dysków.
+        Write-Host "Konfigurowanie typów mediów..."
+        $ssdDisks = $disks[0..1]
+        $hddDisks = $disks[2..3]
+
+        $ssdDisks | Set-PhysicalDisk -MediaType SSD
+        $hddDisks | Set-PhysicalDisk -MediaType HDD
+
+        # 4. Utworzenie Puli Dyskowej (z rozpoznanymi już typami SSD/HDD)
+        $poolName = "StoragePool_Wiecek"
+        New-StoragePool -FriendlyName $poolName `
+                        -StorageSubsystemFriendlyName "Windows Storage*" `
+                        -PhysicalDisks $disks | Out-Null
+
+        # 5. Utworzenie Wirtualnego Dysku z Tieringiem
+        # Windows Server automatycznie tworzy tiery (Performance/Capacity), 
+        # gdy w puli są różne typy dysków (SSD+HDD).
+        
+        # Tworzymy dysk w trybie Mirror (wymaga min. 2 dysków w każdej warstwie, co mamy spełnione)
         $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
-                                 -FriendlyName "DataDisk" `
+                                 -FriendlyName "TieredDisk_Wiecek" `
                                  -ResiliencySettingName Mirror `
                                  -UseMaximumSize `
                                  -ProvisioningType Fixed
 
-        # Inicjalizacja, partycjonowanie i formatowanie ReFS jako F:
+        # 6. Inicjalizacja, partycja i formatowanie ReFS (litera F:)
         $vDisk | Initialize-Disk -PartitionStyle GPT -PassThru | `
                  New-Partition -DriveLetter F -UseMaximumSize | `
-                 Format-Volume -FileSystem ReFS -NewFileSystemLabel "Data" -Confirm:$false
-      register: storage_result
-      changed_when: "'Wolumin F: już istnieje' not in storage_result.stdout"
+                 Format-Volume -FileSystem ReFS -NewFileSystemLabel "ProjektyData" -Confirm:$false
+                 
+      register: storage_setup
+      changed_when: "'Wolumin F: już istnieje' not in storage_setup.stdout"
 
     # -------------------------------------------------------------------
     # ZADANIE 2: Zarządzanie Użytkownikami i Grupami
