@@ -1,10 +1,10 @@
 ---
 - name: Playbook do aktualizacji Debian
-  hosts: serweryweb
+  hosts: agh
   gather_facts: yes
 
   tasks:
-  - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
+    - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
     environment: "DEBIAN_FRONTEND: noninteractive"
     apt:
       upgrade: safe
@@ -15,9 +15,9 @@
       dpkg_options: 'force-confold,force-confdef'
     register: upgradeapt
 
- - name: Powiadomienie do discord
-   community.general.discord:
-     webhook_id: 1460982920536653905
-     webhook_token: A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q
-     username: Semaphore
-     content: "✅ Status aktualizacji oprogramowania na {{ ansible_hostname }}: {{ upgradeapt.stdout_lines }} ✅"
+   - name: Powiadomienie do discord
+     community.general.discord:
+       webhook_id: 1460982920536653905
+       webhook_token: A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q
+       username: Semaphore
+       content: "✅ Status aktualizacji oprogramowania na {{ ansible_hostname }}: {{ upgradeapt.stdout_lines }} ✅"
