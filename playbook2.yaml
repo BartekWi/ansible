@@ -19,7 +19,7 @@
     # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
     - name: Powiadomienie o BŁĘDZIE - Host niedostępny (Discord)
       community.general.discord:
-        webhook_id: "{{ discord_webhook }}"
+        webhook_id: "{{ discord_id }}"
         webhook_token: "{{ discord_token }}"
         username: Semaphore
         content: "❌ [CRITICAL] Nie można połączyć się z {{ inventory_hostname }}. Serwer jest wyłączony lub sieć nie działa."
