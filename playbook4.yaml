@@ -1,49 +1,51 @@
 ---
 - name: Konfiguracja Serwera Windows (Storage, Users, Shares, Software)
-  hosts: windows  # Lub nazwa grupy z inventory, np. 'windows'
+  hosts: all
   gather_facts: no
   vars:
+    # ZMIEŃ TO NA SWOJE NAZWISKO
+    nazwisko: "Wiecek" 
+    
     # Nazwy dynamiczne
-    group_name: "Kierownicy_Wiecek"
-    share_name: "Projekty_Wiecek"
+    group_name: "Kierownicy_{{ nazwisko }}"
+    share_name: "Projekty_{{ nazwisko }}"
     share_path: "F:\\Projekty"
 
   tasks:
 
     # -------------------------------------------------------------------
-    # ZADANIE 1: Konfiguracja Puli Dyskowej, Tieringu i Woluminu (F:)
-  
-    # Używamy PowerShell, ponieważ natywne moduły Ansible mają ograniczone
-    # wsparcie dla Storage Tiering i Storage Spaces w konfiguracji mieszanej.
-    # -------------------------------------------------------------------
-    # -------------------------------------------------------------------
-    # ZADANIE 1: Konfiguracja Puli Dyskowej z wymuszeniem typów SSD/HDD
+    # ZADANIE 1: Konfiguracja Puli Dyskowej z jawnym Tieringiem (SSD+HDD)
     # -------------------------------------------------------------------
     - name: Utworzenie Puli, Warstw (Tiers) i Woluminu Tiered
       ansible.windows.win_shell: |
+        # WAŻNE: Wymuszenie zatrzymania skryptu w przypadku jakiegokolwiek błędu
+        $ErrorActionPreference = "Stop"
+
         # 1. Sprawdzenie idempotentności - czy dysk F: już istnieje
         if (Get-Volume -DriveLetter F -ErrorAction SilentlyContinue) {
             Write-Host "Wolumin F: już istnieje. Pomijam konfigurację."
             Exit 0
         }
 
-        # 2. Pobranie dysków fizycznych (zakładamy, że MediaType jest już ustawiony poprawnie na poziomie VM)
+        # 2. Pobranie dysków fizycznych
+        # Upewnij się, że w VM dodałeś 4 dyski i ustawiłeś im MediaType (SSD/HDD)
         $disks = Get-PhysicalDisk -CanPool $true
 
         if ($disks.Count -lt 4) {
-            Write-Error "Błąd: Wymagane 4 dyski (2xSSD, 2xHDD) nie są dostępne w stanie CanPool."
-            Exit 1
+            # Wypiszemy dokładną listę znalezionych dysków, aby ułatwić debugowanie
+            $found = Get-PhysicalDisk -CanPool $true | Select FriendlyName, MediaType, Size, CanPool
+            Write-Output $found
+            Throw "BŁĄD: Znaleziono tylko $($disks.Count) dysków 'CanPool'. Wymagane są 4 (2xSSD, 2xHDD)."
         }
 
         # 3. Utworzenie Puli Dyskowej
-        $poolName = "StoragePool_Wiecek"
+        $poolName = "StoragePool_{{ nazwisko }}"
         New-StoragePool -FriendlyName $poolName `
                         -StorageSubsystemFriendlyName "Windows Storage*" `
                         -PhysicalDisks $disks | Out-Null
 
-        # 4. Utworzenie definicji Warstw (Storage Tiers) - TO JEST KLUCZOWE DLA TIERINGU
-        # Tworzymy warstwę szybką (SSD) i pojemną (HDD)
-        # Używamy Mirror dla obu, aby zapewnić redundancję 
+        # 4. Utworzenie definicji Warstw (Storage Tiers)
+        # [cite_start]Tworzymy warstwę szybką (SSD) i pojemną (HDD) z Mirroringiem [cite: 13]
         
         $tierSSD = New-StorageTier -StoragePoolFriendlyName $poolName `
                                    -FriendlyName "SSD_Tier" `
@@ -55,22 +57,22 @@
                                    -MediaType HDD `
                                    -ResiliencySettingName Mirror
 
-        # 5. Obliczenie maksymalnej dostępnej wielkości dla obu warstw
-        # Wymóg: "Dysk wirtualny ma obejmować całą dostępną przestrzeń w puli" 
+        # 5. Obliczenie maksymalnej dostępnej wielkości
+        # [cite_start]Wymóg: "Dysk wirtualny ma obejmować całą dostępną przestrzeń w puli" [cite: 14]
         
         $tierSizes = Get-StorageTierSupportedSize -FriendlyName "SSD_Tier", "HDD_Tier"
         
         $sizeSSD = ($tierSizes | Where-Object FriendlyName -eq "SSD_Tier").TierSizeMax
         $sizeHDD = ($tierSizes | Where-Object FriendlyName -eq "HDD_Tier").TierSizeMax
 
-        # 6. Utworzenie Dysku Wirtualnego korzystającego z obu warstw
+        # 6. Utworzenie Dysku Wirtualnego (Tiered)
         $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
-                                 -FriendlyName "TieredDisk_Wiecek" `
+                                 -FriendlyName "TieredDisk_{{ nazwisko }}" `
                                  -StorageTiers @($tierSSD, $tierHDD) `
                                  -StorageTierSizes @($sizeSSD, $sizeHDD) `
                                  -WriteCacheSize 0
 
-        # 7. Inicjalizacja i formatowanie (ReFS, litera F:) 
+        # [cite_start]7. Inicjalizacja i formatowanie (ReFS, litera F:) [cite: 14]
         $vDisk | Initialize-Disk -PartitionStyle GPT -PassThru | `
                  New-Partition -DriveLetter F -UseMaximumSize | `
                  Format-Volume -FileSystem ReFS -NewFileSystemLabel "ProjektyData" -Confirm:$false
@@ -79,13 +81,25 @@
       changed_when: "'Wolumin F: już istnieje' not in storage_result.stdout"
 
     # -------------------------------------------------------------------
-    # ZADANIE 2: Zarządzanie Użytkownikami i Grupami
-   
+    # ZADANIE 1.5: Czekanie na pojawienie się dysku (Fix na Twój błąd)
+    # -------------------------------------------------------------------
+    - name: Czekaj na dostępność dysku F:
+      ansible.windows.win_shell: |
+        $retry = 0
+        while (-not (Test-Path F:\)) {
+            if ($retry -gt 10) { Throw "Timeout: Dysk F: nie pojawił się po utworzeniu." }
+            Start-Sleep -Seconds 2
+            $retry++
+        }
+        Write-Host "Dysk F: jest gotowy."
+
+    # -------------------------------------------------------------------
+    # [cite_start]ZADANIE 2: Zarządzanie Użytkownikami i Grupami [cite: 14, 15]
     # -------------------------------------------------------------------
     - name: Utwórz użytkownika Marek Romanek
       ansible.windows.win_user:
         name: "Marek Romanek"
-        password: "Password123!" # Zalecane użycie Ansible Vault w produkcji
+        password: "Password123!"
         state: present
         groups: Users
 
@@ -111,10 +125,9 @@
         state: present
 
     # -------------------------------------------------------------------
-    # ZADANIE 3: Katalogi i Udziały Sieciowe
-    
+    # [cite_start]ZADANIE 3: Katalogi i Udziały Sieciowe [cite: 15, 16]
     # -------------------------------------------------------------------
-    - name: Utwórz katalog '{{ share_path }}' na dysku F
+    - name: Utwórz katalog '{{ share_path }}' na dysku F:
       ansible.windows.win_file:
         path: "{{ share_path }}"
         state: directory
@@ -124,11 +137,10 @@
         name: "{{ share_name }}"
         path: "{{ share_path }}"
         list: yes
-        full: "Administrators,{{ group_name }}" # Pełny dostęp dla Adminów i Kierowników
-        read: "" # Brak dostępu dla innych (domyślnie Everyone ma read, tutaj usuwamy)
+        full: "Administrators,{{ group_name }}"
+        read: ""
         state: present
 
-    # Dodatkowe zabezpieczenie NTFS (oprócz uprawnień udziału, ważne są uprawnienia plików)
     - name: Ustaw uprawnienia NTFS dla katalogu Projekty
       ansible.windows.win_acl:
         path: "{{ share_path }}"
@@ -138,25 +150,28 @@
         state: present
 
     # -------------------------------------------------------------------
-    # ZADANIE 4: Instalacja Aplikacji (Winget)
-    
+    # [cite_start]ZADANIE 4: Instalacja Aplikacji (Winget) [cite: 17]
     # -------------------------------------------------------------------
     - name: Zainstaluj aplikacje przez Winget (7zip, Firefox, BIND/dig)
       ansible.windows.win_shell: |
         $app = "{{ item.id }}"
+        # Sprawdzamy czy winget jest dostępny (Windows Server 2025 powinien mieć go domyślnie, 2019/2022 czasem wymaga doinstalowania App Installer)
+        if (!(Get-Command winget -ErrorAction SilentlyContinue)) {
+            Write-Warning "Winget nie jest zainstalowany lub nie jest w PATH."
+            Exit 0 
+        }
         if (!(winget list -e --id $app)) {
             winget install --id $app -e --silent --accept-package-agreements --accept-source-agreements
         }
       loop:
         - { name: '7zip', id: '7zip.7zip' }
         - { name: 'Firefox', id: 'Mozilla.Firefox' }
-        - { name: 'BIND Tools (dig)', id: 'ISC.BIND' } # Pakiet zawierający narzędzie dig
+        - { name: 'BIND Tools (dig)', id: 'ISC.BIND' }
       register: winget_install
       changed_when: winget_install.stdout is search("Successfully installed")
 
     # -------------------------------------------------------------------
-    # ZADANIE 5: Rejestr - Blokada usuwania drukarek
- 
+    # [cite_start]ZADANIE 5: Rejestr - Blokada usuwania drukarek [cite: 17]
     # -------------------------------------------------------------------
     - name: Konfiguracja Rejestru - Zapobieganie usuwaniu drukarek
       ansible.windows.win_regedit:
@@ -165,6 +180,3 @@
         data: 1
         type: dword
         state: present
-      # Nota: Ta polityka systemowa blokuje usuwanie drukarek użytkownikom, 
-      # ale system Windows domyślnie pozwala Administratorom ignorować to ustawienie,
-      # co spełnia wymóg "tylko wszystkim użytkownikom nie posiadających uprawnień administracyjnych".
