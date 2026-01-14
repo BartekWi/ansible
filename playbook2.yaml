@@ -18,6 +18,12 @@
           environment: 
             DEBIAN_FRONTEND: noninteractive
           register: upgradeapt
+        - name: Powiadomienie o SUKCESIE (Discord)
+          community.general.discord:
+            webhook_id: "1460982920536653905" # Zalecam ukrywanie tokenów w zmiennych
+            webhook_token: "A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q"
+            username: Semaphore
+            content: "✅ [SUKCES] Aktualizacja na {{ ansible_hostname }} zakończona.\nZmienione: {{ upgradeapt.changed }}"
       rescue:
         - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
           community.general.discord:
