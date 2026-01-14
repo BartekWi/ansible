@@ -5,22 +5,23 @@
   gather_facts: yes
 
   tasks:
-    block:
-      - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
-        apt:
-          upgrade: safe
-          update_cache: yes
-          autoclean: true
-          clean: true
-          autoremove: true
-          dpkg_options: 'force-confold,force-confdef'
-        environment: 
-          DEBIAN_FRONTEND: noninteractive
-        register: upgradeapt
-    rescue:
-      - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
-        community.general.discord:
-          webhook_id: "1460982920536653905"
-          webhook_token: "A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q"
-          username: Semaphore
-          content: "Vg [BŁĄD] Aktualizacja na {{ ansible_hostname }} NIE POWIODŁA SIĘ! Sprawdź logi w Semaphore."
+    - name: Blok aktualizacji z obsługą błędów 
+      block:
+        - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
+          apt:
+            upgrade: safe
+            update_cache: yes
+            autoclean: true
+            clean: true
+            autoremove: true
+            dpkg_options: 'force-confold,force-confdef'
+          environment: 
+            DEBIAN_FRONTEND: noninteractive
+          register: upgradeapt
+      rescue:
+        - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
+          community.general.discord:
+            webhook_id: "1460982920536653905"
+            webhook_token: "A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q"
+            username: Semaphore
+            content: "Vg [BŁĄD] Aktualizacja na {{ ansible_hostname }} NIE POWIODŁA SIĘ! Sprawdź logi w Semaphore."
