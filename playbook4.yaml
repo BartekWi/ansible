@@ -18,45 +18,65 @@
     # Używamy PowerShell, ponieważ natywne moduły Ansible mają ograniczone
     # wsparcie dla Storage Tiering i Storage Spaces w konfiguracji mieszanej.
     # -------------------------------------------------------------------
-    - name: Konfiguracja Storage Pool, Tiering (SSD/HDD) i Woluminu ReFS F
+    - name: Utworzenie Puli, Warstw (Tiers) i Woluminu Tiered
       ansible.windows.win_shell: |
-        # Sprawdzenie czy dysk F już istnieje (idempotentność)
+        # 1. Sprawdzenie idempotentności - czy dysk F: już istnieje
         if (Get-Volume -DriveLetter F -ErrorAction SilentlyContinue) {
             Write-Host "Wolumin F: już istnieje. Pomijam konfigurację."
             Exit 0
         }
 
-        # Pobranie dostępnych dysków fizycznych
+        # 2. Pobranie dysków fizycznych (zakładamy, że MediaType jest już ustawiony poprawnie na poziomie VM)
         $disks = Get-PhysicalDisk -CanPool $true
 
         if ($disks.Count -lt 4) {
-            Write-Error "Znaleziono mniej niż 4 dyski do puli. Sprawdź konfigurację VM."
+            Write-Error "Błąd: Wymagane 4 dyski (2xSSD, 2xHDD) nie są dostępne w stanie CanPool."
             Exit 1
         }
 
-        # Utworzenie Puli
+        # 3. Utworzenie Puli Dyskowej
         $poolName = "StoragePool_{{ nazwisko }}"
-        New-StoragePool -FriendlyName $poolName -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $disks | Out-Null
+        New-StoragePool -FriendlyName $poolName `
+                        -StorageSubsystemFriendlyName "Windows Storage*" `
+                        -PhysicalDisks $disks | Out-Null
 
-        # W środowisku wirtualnym typ mediów (SSD/HDD) często jest "Unspecified".
-        # Poniższy fragment próbuje wymusić wykrycie lub ustawić tiery, jeśli media są rozpoznane.
-        # W prostym labie wirtualnym bez S2D, tiering może wymagać ręcznego tagowania mediów.
-        # Poniżej standardowa procedura tworzenia wirtualnego dysku z Mirrorem.
+        # 4. Utworzenie definicji Warstw (Storage Tiers) - TO JEST KLUCZOWE DLA TIERINGU
+        # Tworzymy warstwę szybką (SSD) i pojemną (HDD)
+        # Używamy Mirror dla obu, aby zapewnić redundancję 
         
-        # Utworzenie wirtualnego dysku (Mirror) wykorzystującego całą przestrzeń
-        # UWAGA: Pełny Tiering SSD/HDD wymaga, aby hypervisor poprawnie zgłaszał typy dysków.
-        $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
-                                 -FriendlyName "DataDisk" `
-                                 -ResiliencySettingName Mirror `
-                                 -UseMaximumSize `
-                                 -ProvisioningType Fixed
+        $tierSSD = New-StorageTier -StoragePoolFriendlyName $poolName `
+                                   -FriendlyName "SSD_Tier" `
+                                   -MediaType SSD `
+                                   -ResiliencySettingName Mirror
 
-        # Inicjalizacja, partycjonowanie i formatowanie ReFS jako F:
+        $tierHDD = New-StorageTier -StoragePoolFriendlyName $poolName `
+                                   -FriendlyName "HDD_Tier" `
+                                   -MediaType HDD `
+                                   -ResiliencySettingName Mirror
+
+        # 5. Obliczenie maksymalnej dostępnej wielkości dla obu warstw
+        # Wymóg: "Dysk wirtualny ma obejmować całą dostępną przestrzeń w puli" 
+        
+        $tierSizes = Get-StorageTierSupportedSize -FriendlyName "SSD_Tier", "HDD_Tier"
+        
+        $sizeSSD = ($tierSizes | Where-Object FriendlyName -eq "SSD_Tier").TierSizeMax
+        $sizeHDD = ($tierSizes | Where-Object FriendlyName -eq "HDD_Tier").TierSizeMax
+
+        # 6. Utworzenie Dysku Wirtualnego korzystającego z obu warstw
+        $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
+                                 -FriendlyName "TieredDisk_{{ nazwisko }}" `
+                                 -StorageTiers @($tierSSD, $tierHDD) `
+                                 -StorageTierSizes @($sizeSSD, $sizeHDD) `
+                                 -WriteCacheSize 0
+
+        # 7. Inicjalizacja i formatowanie (ReFS, litera F:) 
         $vDisk | Initialize-Disk -PartitionStyle GPT -PassThru | `
                  New-Partition -DriveLetter F -UseMaximumSize | `
                  Format-Volume -FileSystem ReFS -NewFileSystemLabel "Data" -Confirm:$false
+
       register: storage_result
       changed_when: "'Wolumin F: już istnieje' not in storage_result.stdout"
+        
 
     # -------------------------------------------------------------------
     # ZADANIE 2: Zarządzanie Użytkownikami i Grupami
