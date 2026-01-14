@@ -8,7 +8,7 @@
     - name: Sprawdź czy host jest dostępny (port 22)
       delegate_to: localhost
       wait_for:
-        host: "{{ inventory_hostname }}"
+        host: agh
         port: 22
         timeout: 15
         state: started
