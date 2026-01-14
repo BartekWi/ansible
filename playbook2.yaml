@@ -6,8 +6,8 @@
   tasks:
     - name: Sprawdź czy port SSH jest otwarty
       wait_for:
-        host: "{{ hostvars[target_host]['ansible_host'] | default(target_host) }}"
-        port: "{{ target_port }}"
+        host: agh
+        port: 22
         state: started
         timeout: 5
       register: ssh_check
