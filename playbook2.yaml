@@ -1,35 +1,37 @@
 ---
-- name: Sprawdzenie dostępności hosta
-  hosts: localhost
-  connection: local
+- name: Playbook do aktualizacji Debian (z obsługą host down)
+  hosts: agh
+  become: yes
   gather_facts: no
   tasks:
     # 1. Sprawdzenie czy host żyje (bez przerywania playbooka)
-    - name: Sprawdź dostępność hosta (timeout 5s)
-      wait_for_connection:
+    - name: Sprawdź czy host jest dostępny (port 22)
+      delegate_to: localhost
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 22
         timeout: 5
+        state: started
       ignore_errors: yes
       register: host_status
+      become: no # Sprawdzanie portu nie wymaga roota na localhost
 
     # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
-    - name: Powiadomienie o BŁĘDZIE POŁĄCZENIA (Host Offline)
+    - name: Powiadomienie o BŁĘDZIE - Host niedostępny (Discord)
       community.general.discord:
-        webhook_id: "{{ discord_id }}" # Zmień to!
-        webhook_token: "{{ discord_token }}"    # Zmień to!
+        webhook_id: "{{ discord_webhook }}"
+        webhook_token: "{{ discord_token }}"
         username: Semaphore
-        content: "⛔ [BŁĄD KRYTYCZNY] Host {{ inventory_hostname }} jest OFFLINE. Aktualizacja niemożliwa."
-      delegate_to: localhost  # Wykonaj to na serwerze Semaphore, nie na celu
+        content: "❌ [CRITICAL] Nie można połączyć się z {{ inventory_hostname }}. Serwer jest wyłączony lub sieć nie działa."
+      delegate_to: localhost
       become: no
-      when: host_status is failed
-    - name: Zakończ działanie jeśli host offline
+      when: host_status.failed
+    - name: Zakończ playbook jeśli host nie odpowiada
       meta: end_play
-      when: host_status is failed
-- name: Playbook do aktualizacji Debian
-  hosts: agh
-  become: yes
-  gather_facts: yes
+      when: host_status.failed  
+    - name: Zbierz fakty o systemie (ręcznie)
+      setup:
 
-  tasks:
     - name: Blok aktualizacji z obsługą błędów 
       block:
         - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
