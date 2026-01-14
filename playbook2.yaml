@@ -14,8 +14,8 @@
     # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
     - name: Powiadomienie o BŁĘDZIE POŁĄCZENIA (Host Offline)
       community.general.discord:
-        webhook_id: "1460982920536653905" # Zmień to!
-        webhook_token: "TWOJ_NOWY_TOKEN"    # Zmień to!
+        webhook_id: "{{ discord_id }}" # Zmień to!
+        webhook_token: "{{ discord_token }}"    # Zmień to!
         username: Semaphore
         content: "⛔ [BŁĄD KRYTYCZNY] Host {{ inventory_hostname }} jest OFFLINE. Aktualizacja niemożliwa."
       delegate_to: localhost  # Wykonaj to na serwerze Semaphore, nie na celu
@@ -43,13 +43,13 @@
         - name: Powiadomienie o SUKCESIE (Discord)
           community.general.discord:
             webhook_id: "{{ discord_id }}"
-            webhook_token: "{{ discord_tokenk }}"
+            webhook_token: "{{ discord_token }}"
             username: Semaphore
             content: "✅ [SUKCES] Aktualizacja na {{ ansible_hostname }} zakończona.\nZmienione: {{ upgradeapt.changed }}"
       rescue:
         - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
           community.general.discord:
             webhook_id: "{{ discord_id }}"
-            webhook_token: "{{ discord_tokenk }}"
+            webhook_token: "{{ discord_token }}"
             username: Semaphore
             content: "Vg [BŁĄD] Aktualizacja na {{ ansible_hostname }} NIE POWIODŁA SIĘ! Sprawdź logi w Semaphore."
