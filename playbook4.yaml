@@ -28,7 +28,7 @@
         }
         $disks = Get-PhysicalDisk -CanPool $true
         $hddDisks = $disks[0..1]
-        $ssdDisks = $disks[2..($disks.Count-1)]
+        $ssdDisks = $disks[2..3]
 
         $ssdDisks | Set-PhysicalDisk -MediaType SSD
         $hddDisks | Set-PhysicalDisk -MediaType HDD
