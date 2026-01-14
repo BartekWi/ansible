@@ -8,7 +8,7 @@
     - name: Sprawdź czy host jest dostępny (port 22)
       delegate_to: localhost
       wait_for:
-        host: "{{ ansible_host | default(inventory_hostname) }}"
+        host: "{{ ansible_host }}"
         port: 22
         timeout: 5
         state: started
