@@ -19,7 +19,7 @@
     # -------------------------------------------------------------------
     # ZADANIE 1: Konfiguracja Puli Dyskowej z wymuszeniem typów SSD/HDD
     # -------------------------------------------------------------------
-    - name: Konfiguracja Storage Pool, Tiering (SSD/HDD) i Woluminu ReFS F:
+    - name: Konfiguracja Storage Pool, Tiering (SSD/HDD) i Woluminu ReFS F
       ansible.windows.win_shell: |
         # Sprawdzenie czy dysk F już istnieje (idempotentność)
         if (Get-Volume -DriveLetter F -ErrorAction SilentlyContinue) {
