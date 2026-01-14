@@ -1,6 +1,6 @@
 ---
 - name: Konfiguracja Serwera Windows (Storage, Users, Shares, Software)
-  hosts: all
+  hosts: windows
   gather_facts: no
   vars:
     # ZMIEŃ TO NA SWOJE NAZWISKO
