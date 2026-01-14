@@ -1,4 +1,29 @@
 ---
+- name: Sprawdzenie dostępności hosta
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Sprawdź czy port SSH jest otwarty
+      wait_for:
+        host: "{{ hostvars[target_host]['ansible_host'] | default(target_host) }}"
+        port: "{{ target_port }}"
+        state: started
+        timeout: 5
+      register: ssh_check
+      ignore_errors: yes
+
+    - name: Powiadomienie o BŁĘDZIE POŁĄCZENIA (Discord)
+      community.general.discord:
+        webhook_id: "{{ discord_id }}"
+        webhook_token: "{{ discord_tokenk }}"
+        username: Semaphore
+        content: "🛑 [BŁĄD KRYTYCZNY] Serwer {{ target_host }} jest WYŁĄCZONY lub niedostępny! Aktualizacja niemożliwa."
+      when: ssh_check is failed
+
+    - name: Zakończ playbook jeśli host nie odpowiada
+      meta: end_play
+      when: ssh_check is failed
 - name: Playbook do aktualizacji Debian
   hosts: agh
   become: yes
@@ -20,14 +45,14 @@
           register: upgradeapt
         - name: Powiadomienie o SUKCESIE (Discord)
           community.general.discord:
-            webhook_id: "1460982920536653905" # Zalecam ukrywanie tokenów w zmiennych
-            webhook_token: "A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q"
+            webhook_id: "{{ discord_id }}"
+            webhook_token: "{{ discord_tokenk }}"
             username: Semaphore
             content: "✅ [SUKCES] Aktualizacja na {{ ansible_hostname }} zakończona.\nZmienione: {{ upgradeapt.changed }}"
       rescue:
         - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
           community.general.discord:
-            webhook_id: "1460982920536653905"
-            webhook_token: "A3it1E6Vm4k2DaT3EWLpzf7SGzJ-hrgDbGrsVzSNII1n8uqhz97DakGHMdlj4X5RPp6q"
+            webhook_id: "{{ discord_id }}"
+            webhook_token: "{{ discord_tokenk }}"
             username: Semaphore
             content: "Vg [BŁĄD] Aktualizacja na {{ ansible_hostname }} NIE POWIODŁA SIĘ! Sprawdź logi w Semaphore."
