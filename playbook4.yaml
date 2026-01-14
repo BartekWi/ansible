@@ -16,37 +16,53 @@
     # -------------------------------------------------------------------
     # ZADANIE 1: Konfiguracja Puli Dyskowej z jawnym Tieringiem (SSD+HDD)
     # -------------------------------------------------------------------
-    - name: Utworzenie Puli, Warstw (Tiers) i Woluminu Tiered
+    - name: Konfiguracja Storage Pool z czyszczeniem błędów i Tieringiem
       ansible.windows.win_shell: |
-        # WAŻNE: Wymuszenie zatrzymania skryptu w przypadku jakiegokolwiek błędu
         $ErrorActionPreference = "Stop"
+        $poolName = "StoragePool_{{ nazwisko }}"
 
-        # 1. Sprawdzenie idempotentności - czy dysk F: już istnieje
+        # --- KROK 0: AUTONAPRAWA (Czyszczenie po błędnych próbach) ---
+        # Jeśli Pula istnieje, ale wolumin F: nie - usuwamy pulę, aby zacząć od nowa.
+        $existingPool = Get-StoragePool -FriendlyName $poolName -ErrorAction SilentlyContinue
+        $existingVol = Get-Volume -DriveLetter F -ErrorAction SilentlyContinue
+
+        if ($existingPool -and -not $existingVol) {
+            Write-Host "WYKRYTO NIESPÓJNOŚĆ: Pula istnieje, ale brak dysku F. Usuwanie starej puli..."
+            # Usuń ewentualne wirtualne dyski w tej puli
+            Get-VirtualDisk -StoragePoolFriendlyName $poolName -ErrorAction SilentlyContinue | Remove-VirtualDisk -Confirm:$false
+            # Usuń pulę
+            Remove-StoragePool -FriendlyName $poolName -Confirm:$false
+            Write-Host "Stara pula usunięta. Czekam na zwolnienie dysków..."
+            Start-Sleep -Seconds 5
+        }
+
+        # --- KROK 1: Idempotentność (Jeśli F: istnieje, kończymy) ---
         if (Get-Volume -DriveLetter F -ErrorAction SilentlyContinue) {
             Write-Host "Wolumin F: już istnieje. Pomijam konfigurację."
             Exit 0
         }
 
-        # 2. Pobranie dysków fizycznych
-        # Upewnij się, że w VM dodałeś 4 dyski i ustawiłeś im MediaType (SSD/HDD)
+        # --- KROK 2: Sprawdzenie dysków ---
         $disks = Get-PhysicalDisk -CanPool $true
-
         if ($disks.Count -lt 4) {
-            # Wypiszemy dokładną listę znalezionych dysków, aby ułatwić debugowanie
-            $found = Get-PhysicalDisk -CanPool $true | Select FriendlyName, MediaType, Size, CanPool
-            Write-Output $found
-            Throw "BŁĄD: Znaleziono tylko $($disks.Count) dysków 'CanPool'. Wymagane są 4 (2xSSD, 2xHDD)."
+            # Ostateczna próba resetu dysków, jeśli są zablokowane w innej puli "Primordial"
+            Write-Warning "Znaleziono za mało dysków ($($disks.Count)). Próba odświeżenia..."
+            Update-HostStorageCache
+            Start-Sleep -Seconds 2
+            $disks = Get-PhysicalDisk -CanPool $true
         }
 
-        # 3. Utworzenie Puli Dyskowej
-        $poolName = "StoragePool_{{ nazwisko }}"
+        if ($disks.Count -lt 4) {
+             Throw "BŁĄD KRYTYCZNY: Znaleziono tylko $($disks.Count) dysków 'CanPool'. Wymagane 4."
+        }
+
+        # --- KROK 3: Utworzenie Puli ---
         New-StoragePool -FriendlyName $poolName `
                         -StorageSubsystemFriendlyName "Windows Storage*" `
                         -PhysicalDisks $disks | Out-Null
 
-        # 4. Utworzenie definicji Warstw (Storage Tiers)
-        # [cite_start]Tworzymy warstwę szybką (SSD) i pojemną (HDD) z Mirroringiem [cite: 13]
-        
+        # --- KROK 4: Definicja Warstw (SSD/HDD) ---
+        # Ważne: Tworzymy definicje warstw w nowej puli
         $tierSSD = New-StorageTier -StoragePoolFriendlyName $poolName `
                                    -FriendlyName "SSD_Tier" `
                                    -MediaType SSD `
@@ -57,41 +73,33 @@
                                    -MediaType HDD `
                                    -ResiliencySettingName Mirror
 
-        # 5. Obliczenie maksymalnej dostępnej wielkości
-        # [cite_start]Wymóg: "Dysk wirtualny ma obejmować całą dostępną przestrzeń w puli" [cite: 14]
-        
+        # --- KROK 5: Obliczenie rozmiaru (FIX NA BŁĄD INVALID PARAMETER) ---
         $tierSizes = Get-StorageTierSupportedSize -FriendlyName "SSD_Tier", "HDD_Tier"
         
-        $sizeSSD = ($tierSizes | Where-Object FriendlyName -eq "SSD_Tier").TierSizeMax
-        $sizeHDD = ($tierSizes | Where-Object FriendlyName -eq "HDD_Tier").TierSizeMax
+        $rawSizeSSD = ($tierSizes | Where-Object FriendlyName -eq "SSD_Tier").TierSizeMax
+        $rawSizeHDD = ($tierSizes | Where-Object FriendlyName -eq "HDD_Tier").TierSizeMax
 
-        # 6. Utworzenie Dysku Wirtualnego (Tiered)
+        # Zmniejszamy rozmiar o ok. 512MB (bezpieczny margines na metadane/alignment)
+        # Bez tego New-VirtualDisk rzuca "Invalid Parameter"
+        $safeSizeSSD = $rawSizeSSD - 536870912 
+        $safeSizeHDD = $rawSizeHDD - 536870912
+
+        Write-Host "Rozmiar SSD Max: $rawSizeSSD, Użyty: $safeSizeSSD"
+        Write-Host "Rozmiar HDD Max: $rawSizeHDD, Użyty: $safeSizeHDD"
+
+        # --- KROK 6: Utworzenie Dysku Wirtualnego ---
         $vDisk = New-VirtualDisk -StoragePoolFriendlyName $poolName `
                                  -FriendlyName "TieredDisk_{{ nazwisko }}" `
                                  -StorageTiers @($tierSSD, $tierHDD) `
-                                 -StorageTierSizes @($sizeSSD, $sizeHDD) `
-                                 -WriteCacheSize 0
+                                 -StorageTierSizes @($safeSizeSSD, $safeSizeHDD)
+                                 # Usunąłem -WriteCacheSize 0, bo czasem powoduje konflikty
 
-        # [cite_start]7. Inicjalizacja i formatowanie (ReFS, litera F:) [cite: 14]
+        # --- KROK 7: Formatowanie ---
         $vDisk | Initialize-Disk -PartitionStyle GPT -PassThru | `
                  New-Partition -DriveLetter F -UseMaximumSize | `
                  Format-Volume -FileSystem ReFS -NewFileSystemLabel "ProjektyData" -Confirm:$false
 
       register: storage_result
-      changed_when: "'Wolumin F: już istnieje' not in storage_result.stdout"
-
-    # -------------------------------------------------------------------
-    # ZADANIE 1.5: Czekanie na pojawienie się dysku (Fix na Twój błąd)
-    # -------------------------------------------------------------------
-    - name: Czekaj na dostępność dysku F
-      ansible.windows.win_shell: |
-        $retry = 0
-        while (-not (Test-Path F:\)) {
-            if ($retry -gt 10) { Throw "Timeout: Dysk F: nie pojawił się po utworzeniu." }
-            Start-Sleep -Seconds 2
-            $retry++
-        }
-        Write-Host "Dysk F: jest gotowy."
 
     # -------------------------------------------------------------------
     # [cite_start]ZADANIE 2: Zarządzanie Użytkownikami i Grupami [cite: 14, 15]
