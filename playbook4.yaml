@@ -1,6 +1,6 @@
 ---
 - name: Konfiguracja Serwera Windows (Storage, Users, Shares, Software)
-  hosts: all  # Lub nazwa grupy z inventory, np. 'windows'
+  hosts: windows  # Lub nazwa grupy z inventory, np. 'windows'
   gather_facts: no
   vars:
     # Nazwy dynamiczne
