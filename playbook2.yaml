@@ -1,6 +1,6 @@
 ---
 - name: Aktualizacja Systemu Operacyjnego (Playbook 2)
-  hosts: all   # W Semaphore UI możesz ograniczyć to do grupy 'linux_servers' lub konkretnych maszyn (np. AGH)
+  hosts: agh   # W Semaphore UI możesz ograniczyć to do grupy 'linux_servers' lub konkretnych maszyn (np. AGH)
   become: yes
   tasks:
     - name: Aktualizuj cache menedżera pakietów (apt update)
