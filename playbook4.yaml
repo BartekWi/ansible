@@ -114,7 +114,7 @@
         $apps = @(
             "7zip.7zip",
             "Mozilla.Firefox",
-            "Resili.BIND"  # Pakiet zawierający narzędzie dig
+            "ISC.Bind"  # Pakiet zawierający narzędzie dig
         )
         
         foreach ($app in $apps) {
