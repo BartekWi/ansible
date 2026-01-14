@@ -1,1 +1,61 @@
-test
+---
+- name: Kopia zapasowa AdGuard Home
+  hosts: AGH_serwery  # Upewnij się, że ta nazwa pasuje do Twojego Inventory w Semaphore/Ansible
+  become: true
+  vars:
+    # Ścieżka instalacji AdGuard Home na serwerze zdalnym
+    adh_path: "/opt/AdGuardHome"
+    # Katalog tymczasowy na serwerze zdalnym
+    remote_temp_path: "/tmp"
+    # Katalog docelowy na serwerze Ansible (kontrolnym)
+    local_backup_path: "/var/backups/agh_backups"
+    # Znacznik czasu dla unikalności nazwy pliku
+    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+    backup_filename: "agh_backup_{{ timestamp }}.tar.gz"
+
+  tasks:
+    - name: Sprawdź czy katalog AdGuard Home istnieje
+      stat:
+        path: "{{ adh_path }}"
+      register: adh_dir_check
+
+    - name: Przerwij jeśli AdGuard Home nie jest zainstalowany w wskazanej ścieżce
+      fail:
+        msg: "Katalog {{ adh_path }} nie istnieje. Sprawdź ścieżkę instalacji."
+      when: not adh_dir_check.stat.exists
+
+    # 1. Tworzenie archiwum na serwerze zdalnym (AGH)
+    - name: Utwórz archiwum z danymi i konfiguracją AdGuard Home
+      archive:
+        path:
+          - "{{ adh_path }}/AdGuardHome.yaml"
+          - "{{ adh_path }}/data"
+        dest: "{{ remote_temp_path }}/{{ backup_filename }}"
+        format: gz
+      register: archive_result
+
+    # 2. Przygotowanie miejsca na serwerze Ansible (localhost)
+    - name: Upewnij się, że lokalny katalog na kopie zapasowe istnieje
+      delegate_to: localhost
+      become: false # Zależy od uprawnień użytkownika ansible na maszynie kontrolnej
+      file:
+        path: "{{ local_backup_path }}"
+        state: directory
+        mode: '0755'
+
+    # 3. Pobieranie pliku na serwer Ansible
+    - name: Pobierz kopię zapasową na serwer Ansible
+      fetch:
+        src: "{{ remote_temp_path }}/{{ backup_filename }}"
+        dest: "{{ local_backup_path }}/"
+        flat: yes
+
+    # 4. Sprzątanie (Idempotentność i porządek)
+    - name: Usuń tymczasowe archiwum z serwera zdalnego
+      file:
+        path: "{{ remote_temp_path }}/{{ backup_filename }}"
+        state: absent
+
+    - name: Wyświetl potwierdzenie
+      debug:
+        msg: "Kopia zapasowa zapisana w: {{ local_backup_path }}/{{ backup_filename }}"
