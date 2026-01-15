@@ -8,7 +8,7 @@
     group_name: "Kierownicy_Wiecek"
     share_name: "Projekty_Wiecek"
     share_path: "F:\\Projekty"
-    bind_path: "C:\Users\Administrator\AppData\Local\Microsoft\WinGet\"
+    bind_path: "C:\\Users\Administrator\\AppData\\Local\\Microsoft\\WinGet\\"
   tasks:
    
     - name: Konfiguracja Puli Dyskowej
