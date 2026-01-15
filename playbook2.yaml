@@ -1,11 +1,11 @@
 ---
-- name: Playbook do aktualizacji Debian (z obsługą host down)
+- name: Aktualizacja Debian
   hosts: agh
   become: yes
   gather_facts: no
   tasks:
-    # 1. Sprawdzenie czy host żyje (bez przerywania playbooka)
-    - name: Sprawdź czy host jest dostępny (port 22)
+
+    - name: Sprawdzenie czy host jest dostępny (port 22)
       delegate_to: localhost
       wait_for:
         host: "{{ ansible_host }}"
@@ -14,27 +14,26 @@
         state: started
       ignore_errors: yes
       register: host_status
-      become: no # Sprawdzanie portu nie wymaga roota na localhost
+      become: no
 
-    # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
-    - name: Powiadomienie o BŁĘDZIE - Host niedostępny (Discord)
+    - name: Powiadomienie o błędzie
       community.general.discord:
         webhook_id: "{{ discord_id }}"
         webhook_token: "{{ discord_token }}"
         username: Semaphore
-        content: "❌ [CRITICAL] Nie można połączyć się z {{ inventory_hostname }}. Serwer jest wyłączony lub sieć nie działa."
+        content: "Nie można połączyć się z {{ inventory_hostname }}."
       delegate_to: localhost
       become: no
       when: host_status.failed
-    - name: Zakończ playbook jeśli host nie odpowiada
+    - name: Zakończ jeśli host nie odpowiada
       meta: end_play
       when: host_status.failed  
-    - name: Zbierz fakty o systemie (ręcznie)
+    - name: Zbierz fakty o systemie
       setup:
 
-    - name: Blok aktualizacji z obsługą błędów 
+    - name: Blok aktualizacji
       block:
-        - name: Zaktualizuj wszystkie pakiety do najnowszej wersji - "apt-get upgrade"
+        - name: Aktualizacja pakietów - "apt-get upgrade"
           apt:
             upgrade: safe
             update_cache: yes
@@ -45,16 +44,10 @@
           environment: 
             DEBIAN_FRONTEND: noninteractive
           register: upgradeapt
-        - name: Powiadomienie o SUKCESIE (Discord)
-          community.general.discord:
-            webhook_id: "{{ discord_id }}"
-            webhook_token: "{{ discord_token }}"
-            username: Semaphore
-            content: "✅ [SUKCES] Aktualizacja na {{ ansible_hostname }} zakończona.\nZmienione: {{ upgradeapt.changed }}"
       rescue:
-        - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
+        - name: Powiadomienie o błedzie 
           community.general.discord:
             webhook_id: "{{ discord_id }}"
             webhook_token: "{{ discord_token }}"
             username: Semaphore
-            content: "Vg [BŁĄD] Aktualizacja na {{ ansible_hostname }} NIE POWIODŁA SIĘ! Sprawdź logi w Semaphore."
+            content: "Aktualizacja nie powiodła się"
