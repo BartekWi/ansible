@@ -1,19 +1,16 @@
 ---
-- name: Instalacja i konfiguracja AdGuard Home (Playbook 1)
-  hosts: agh  # W Semaphore UI ograniczysz to do grupy 'AGH' lub konkretnego hosta
+- name: Instalacja i konfiguracja AdGuard Home
+  hosts: agh  
   become: yes
   vars:
-    # Definicja dysków do RAID1 (sprawdź czy nazwy sdb/sdc są poprawne dla Twojego VM)
     disk_1: /dev/sdb
     disk_2: /dev/sdc
     mount_point: /adguardhome
     vg_name: adg_vg
     lv_name: adg_lv
   tasks:
-    # ---------------------------------------------------------
-    # 1. KONFIGURACJA LVM I RAID1 [cite: 12, 13]
-    # ---------------------------------------------------------
-    - name: Zainstaluj lvm2 i ufw (wymagane pakiety)
+
+    - name: Instalacja lvm2 i ufw
       apt:
         name:
           - ufw
@@ -23,28 +20,27 @@
         state: present
         update_cache: yes
       check_mode: no
-    - name: Utwórz Woluminy Fizyczne (PV) na dodatkowych dyskach
+    - name: Utworzenie Woluminów PV
       community.general.lvg:
         vg: "{{ vg_name }}"
         pvs:
           - "{{ disk_1 }}"
           - "{{ disk_2 }}"
 
-    - name: Utwórz Wolumin Logiczny (LV) w trybie RAID1 zajmujący całą przestrzeń
+    - name: Utworzenie Woluminu LV 
       community.general.lvol:
         vg: "{{ vg_name }}"
         lv: "{{ lv_name }}"
         size: 100%FREE
         opts: "--type raid1"
         shrink: false
-      # Opcja --type raid1 realizuje wymóg pracy w logice RAID1 
 
-    - name: Sformatuj wolumin systemem plików ext4
+    - name: Sformatowanie woluminu systemem plików ext4
       filesystem:
         fstype: ext4
         dev: "/dev/{{ vg_name }}/{{ lv_name }}"
 
-    - name: Zamontuj wolumin w katalogu /adguardhome
+    - name: Zamontowanie woluminu w katalogu /adguardhome
       mount:
         path: "{{ mount_point }}"
         src: "/dev/{{ vg_name }}/{{ lv_name }}"
@@ -52,69 +48,60 @@
         opts: defaults
         state: mounted
 
-    # ---------------------------------------------------------
-    # 2. INSTALACJA ADGUARD HOME 
-    # ---------------------------------------------------------
-    - name: Pobierz i rozpakuj AdGuard Home
+    - name: Pobranie i rozpakowanie AdGuard Home
       unarchive:
         src: https://static.adguard.com/adguardhome/release/AdGuardHome_linux_amd64.tar.gz
         dest: "{{ mount_point }}"
         remote_src: yes
         extra_opts: [--strip-components=1] 
         creates: "{{ mount_point }}/AdGuardHome/AdGuardHome"
-        # --strip-components=1 usuwa katalog nadrzędny, aby pliki trafiły bezpośrednio do /adguardhome
-    - name: Nadaj uprawnienia wykonywania dla pliku binarnego AdGuardHome
+    - name: Nadanie uprawnien dla AdGuardHome
       file:
         path: "{{ mount_point }}/AdGuardHome/AdGuardHome"
         mode: '0755'
         state: file
-    - name: Instaluj usługę AdGuard Home
+    - name: Instalacja uslugi AdGuard Home
       command: "{{ mount_point }}/AdGuardHome/AdGuardHome -s install"
       args:
         chdir: "{{ mount_point }}"
         creates: /etc/systemd/system/AdGuardHome.service
-      # 'creates' zapewnia idempotentność - nie uruchomi się, jeśli usługa już istnieje
 
-    - name: Upewnij się, że usługa AdGuard Home jest uruchomiona
+    - name: Uruchomienie uslugi
       service:
         name: AdGuardHome
         state: started
         enabled: yes
-
-    # ---------------------------------------------------------
-    # 3. KONFIGURACJA ZAPORY OGNIOWEJ (UFW) [cite: 13, 14]
-    # ---------------------------------------------------------
-    - name: Domyślnie zablokuj ruch przychodzący (deny incoming)
+    - name: Zablokowanie ruchu przychodzącego 
       community.general.ufw:
         default: deny
         direction: incoming
 
-    - name: Zezwól na ruch wychodzący
+    - name: Zezwolenie na ruch wychodzący
       community.general.ufw:
         default: allow
         direction: outgoing
 
-    - name: Zezwól na SSH (port 22)
+    - name: Zezwolenie na SSH port 22
       community.general.ufw:
         rule: allow
         port: '22'
         proto: tcp
 
-    - name: Zezwól na DNS (port 53 TCP/UDP) - wymagane dla AdGuard
+    - name: Zezwolenie na DNS port 53 
       community.general.ufw:
         rule: allow
         port: '53'
 
-    - name: Zezwól na Panel Web AdGuard (port 3000 dla instalacji, 80/443 dla GUI)
+    - name: Zezwolenie na Panel Web AdGuard port 3000 80/443 
       community.general.ufw:
         rule: allow
         port: "{{ item }}"
         proto: tcp
       loop:
-        - '3000' # Port instalacyjny (często wymagany przy pierwszym uruchomieniu)
-        - '80'   # Standardowy port HTTP panelu
-        - '443'  # HTTPS
+        - '3000' 
+        - '80'   
+        - '443' 
 
-    - name: Włącz zaporę ogniową (UFW) i ustaw start z systemem
+    - name: Włączenie zapory ogniowej i ustawienie na start z systemem
       community.general.ufw:
         state: enabled
