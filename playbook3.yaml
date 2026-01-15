@@ -19,7 +19,7 @@
       ignore_errors: yes
       register: host_status
       become: no 
-    - name: Powiadomienie o BŁĘDZIE - Host niedostępny (Discord)
+    - name: Powiadomienie o błedzie
       community.general.discord:
         webhook_id: "{{ discord_id }}"
         webhook_token: "{{ discord_token }}"
