@@ -155,7 +155,7 @@
 
     - name: Dodaj znaleziony folder do systemowej zmiennej PATH
       ansible.windows.win_path:
-        elements: "{{ bind_path }}Packages\ISC.Bind_Microsoft.Winget.Source_8wekyb3d8bbwe\"
+        elements: "{{ bind_path }}Packages\\ISC.Bind_Microsoft.Winget.Source_8wekyb3d8bbwe"
         state: present
         scope: machine
     - name: Blokada usuwania drukarek
