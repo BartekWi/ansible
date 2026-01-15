@@ -1,70 +1,56 @@
 ---
 - name: Konfiguracja Serwera Windows - Część 3 (Storage, Users, Apps)
-  hosts: windows  # Docelowo powinna to być grupa/host WINSRV_{nazwisko}
+  hosts: windows 
   gather_facts: no
   vars:
-    # ZMIEŃ TO NAZWISKO NA WŁASNE
-    nazwisko: "Wiecek"
-    
-    # Zmienne dynamiczne na podstawie nazwiska
-    vm_name: "WINSRV_{{ nazwisko }}"
-    pool_name: "Pool_{{ nazwisko }}"
-    group_name: "Kierownicy_{{ nazwisko }}"
-    share_name: "Projekty_{{ nazwisko }}"
+    vm_name: "WINSRV_Wiecek"
+    pool_name: "Pool_Wiecek"
+    group_name: "Kierownicy_Wiecek"
+    share_name: "Projekty_Wiecek"
     share_path: "F:\\Projekty"
 
   tasks:
-    # ----------------------------------------------------------------
-    # 1. KONFIGURACJA STORAGE (Pula, Tiering, Mirror, ReFS) 
-    # ----------------------------------------------------------------
-    - name: Konfiguracja Puli Dyskowej, Storage Tiers i Wolumenu ReFS (Mirror)
+   
+    - name: Konfiguracja Puli Dyskowej
       ansible.windows.win_shell: |
         $DriveLetter = "F"
         
-        # Sprawdzenie czy dysk już istnieje (idempotentność)
+        
         if ((Get-Partition -DriveLetter $DriveLetter -ErrorAction SilentlyContinue)) {
-            Write-Host "Dysk $DriveLetter już istnieje. Pomijanie konfiguracji."
+            Write-Host "Dysk $DriveLetter już istnieje"
             Exit 0
         }
 
-        # Pobranie dostępnych dysków fizycznych
+        
         $PhysicalDisks = Get-PhysicalDisk -CanPool $true
         if ($PhysicalDisks.Count -lt 4) {
             Write-Error "Nie znaleziono wystarczającej liczby dysków do utworzenia puli (wymagane 4)."
             Exit 1
         }
 
-        # Utworzenie Puli Dyskowej 
+        
         $Pool = New-StoragePool -FriendlyName "{{ pool_name }}" -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $PhysicalDisks
         
-        # Utworzenie Storage Tiers (SSD i HDD) 
-        # Uwaga: Windows Server 2025 może automatycznie wykrywać media, ale wymuszamy definicję
+        
         $SSDTier = New-StorageTier -StoragePoolFriendlyName "{{ pool_name }}" -FriendlyName "SSDTier" -MediaType SSD -ResiliencySettingName Mirror
         $HDDTier = New-StorageTier -StoragePoolFriendlyName "{{ pool_name }}" -FriendlyName "HDDTier" -MediaType HDD -ResiliencySettingName Mirror
 
-        # Obliczenie rozmiarów dla tierów (uproszczone: dzielimy dostępne miejsce)
-        # W środowisku produkcyjnym wymagałoby to precyzyjnych wyliczeń wolnego miejsca w puli
-        # Tutaj zakładamy użycie maksymalnej dostępnej przestrzeni w ramach tierów
-        
-        # Utworzenie Wirtualnego Dysku z Tieringiem i Mirroringiem
-        # Używamy -UseMaximumSize tam gdzie możliwe lub dużych wartości, które system dopasuje
+       
         $VirtualDisk = New-VirtualDisk -StoragePoolFriendlyName "{{ pool_name }}" `
             -FriendlyName "vDisk_{{ nazwisko }}" `
             -StorageTiers @($SSDTier, $HDDTier) `
             -StorageTierSizes @(15GB, 15GB) `
             -WriteCacheSize 1GB
 
-        # Inicjalizacja, partycjonowanie i formatowanie (ReFS, litera F:) 
+       
         $VirtualDisk | Initialize-Disk -PartitionStyle GPT -PassThru | `
             New-Partition -DriveLetter $DriveLetter -UseMaximumSize | `
             Format-Volume -FileSystem ReFS -NewFileSystemLabel "DataVolume" -Confirm:$false
       register: storage_config
       changed_when: "'Dysk F już istnieje' not in storage_config.stdout"
 
-    # ----------------------------------------------------------------
-    # 2. ZARZĄDZANIE UŻYTKOWNIKAMI I GRUPAMI 
-    # ----------------------------------------------------------------
-    - name: Utworzenie grupy zabezpieczeń Kierownicy_{{ nazwisko }} 
+    
+    - name: Utworzenie grupy
       ansible.windows.win_group:
         name: "{{ group_name }}"
         state: present
@@ -73,30 +59,26 @@
     - name: Utworzenie użytkownika Marek Romanek 
       ansible.windows.win_user:
         name: "Marek Romanek"
-        password: "Password123!" # W produkcji używać Vault!
+        password: "123"
         state: present
         groups:
-          - "{{ group_name }}" # Dodanie do grupy 
+          - "{{ group_name }}"
           - "Users"
 
     - name: Utworzenie użytkownika Jacek Gula 
       ansible.windows.win_user:
         name: "Jacek Gula"
-        password: "Password123!"
+        password: "123"
         state: present
         groups:
-          - "{{ group_name }}" # Dodanie do grupy 
+          - "{{ group_name }}" 
           - "Users"
-
-    # ----------------------------------------------------------------
-    # 3. KATALOGI I UDZIAŁY SIECIOWE [cite: 15, 16]
-    # ----------------------------------------------------------------
     - name: Utworzenie katalogu F:\Projekty 
       ansible.windows.win_file:
         path: "{{ share_path }}"
         state: directory
 
-    - name: Udostępnienie katalogu jako Projekty_{{ nazwisko }} z uprawnieniami 
+    - name: Udostępnienie katalogu
       ansible.windows.win_share:
         name: "{{ share_name }}"
         path: "{{ share_path }}"
@@ -104,12 +86,8 @@
         full_control: 
           - Administrators
           - "{{ group_name }}"
-        # Domyślnie usuwa 'Everyone' jeśli nie jest wymieniony, co spełnia wymóg "wyłącznie członkowie grupy"
 
-    # ----------------------------------------------------------------
-    # 4. INSTALACJA APLIKACJI (WINGET) 
-    # ----------------------------------------------------------------
-    - name: Instalacja aplikacji przez Winget (7zip, Firefox, BIND)
+    - name: Instalacja aplikacji
       ansible.windows.win_shell: |
         $apps = @(
             "7zip.7zip",
@@ -118,32 +96,21 @@
         )
         
         foreach ($app in $apps) {
-            # Sprawdzamy czy pakiet istnieje (flaga -e wymusza dokładne dopasowanie ID)
-            # Przekierowujemy wyjście do $null, interesuje nas tylko kod powrotu
             winget list --id $app | Out-Null
             
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "$app jest już zainstalowany."
             } else {
-                Write-Host "Instalowanie $app..."
+                Write-Host "Instalowanie $app"
                 winget install --id $app -e --source winget --accept-package-agreements --accept-source-agreements
             }
         }
         
-        # Kluczowe: Resetujemy kod wyjścia na 0. 
-        # Dzięki temu, nawet jeśli winget zwróci dziwny kod (np. przy braku aktualizacji),
-        # Ansible uzna zadanie za wykonane poprawnie.
+       
         Exit 0
       register: winget_install
       changed_when: "'Instalowanie' in winget_install.stdout"
-
-    # ----------------------------------------------------------------
-    # 5. REJESTR - ZABEZPIECZENIE DRUKAREK 
-    # ----------------------------------------------------------------
-    - name: Blokada usuwania drukarek (Registry)
-      # Ustawienie w HKLM wpływa na maszynę, co efektywnie blokuje zwykłych użytkowników.
-      # Precyzyjne targetowanie "tylko nie-adminów" w rejestrze bez GPO jest skomplikowane,
-      # ale standardowa polityka 'NoDeletePrinter' w Policies\Explorer jest tutaj właściwa.
+    - name: Blokada usuwania drukarek
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer
         name: NoDeletePrinter
