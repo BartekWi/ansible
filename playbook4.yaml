@@ -37,7 +37,7 @@
 
        
         $VirtualDisk = New-VirtualDisk -StoragePoolFriendlyName "{{ pool_name }}" `
-            -FriendlyName "vDisk_{{ nazwisko }}" `
+            -FriendlyName "vDisk_Wiecek" `
             -StorageTiers @($SSDTier, $HDDTier) `
             -StorageTierSizes @(15GB, 15GB) `
             -WriteCacheSize 1GB
