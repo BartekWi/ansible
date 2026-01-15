@@ -73,16 +73,16 @@
         groups:
           - "{{ group_name }}" 
           - "Users"
-    - name: Utwórz katalog '{{ share_path }}' na dysku F:
+    - name: Utworzenie katalogu '{{ share_path }}' na dysku F
       ansible.windows.win_file:
         path: "{{ share_path }}"
         state: directory
-    - name: Wyłącz dziedziczenie uprawnień dla katalogu (Start Czysty)
+    - name: Wyłączenie dziedziczenia uprawnień dla katalogu
       ansible.windows.win_acl_inheritance:
         path: "{{ share_path }}"
         state: absent
         reorganize: no
-    - name: Nadaj Pełną Kontrolę dla Administratorów (NTFS)
+    - name: Pełna Kontrola dla Administratorów
       ansible.windows.win_acl:
         path: "{{ share_path }}"
         user: "Administrators"
@@ -93,7 +93,7 @@
         propagation_flags: "None"
 
   
-    - name: Nadaj Pełną Kontrolę dla grupy '{{ group_name }}' (NTFS)
+    - name: Pełna Kontrola dla '{{ group_name }}'
       ansible.windows.win_acl:
         path: "{{ share_path }}"
         user: "{{ group_name }}"
@@ -103,7 +103,7 @@
         inheritance_flags: "ContainerInherit,ObjectInherit"
         propagation_flags: "None"
 
-    - name: Udostępnij katalog jako '{{ share_name }}'
+    - name: Udostępnienie katalogu jako '{{ share_name }}'
       ansible.windows.win_share:
         name: "{{ share_name }}"
         path: "{{ share_path }}"
