@@ -59,7 +59,7 @@
     - name: Utworzenie użytkownika Marek Romanek 
       ansible.windows.win_user:
         name: "Marek Romanek"
-        password: "123"
+        password: "Passsword123!"
         state: present
         groups:
           - "{{ group_name }}"
@@ -68,7 +68,7 @@
     - name: Utworzenie użytkownika Jacek Gula 
       ansible.windows.win_user:
         name: "Jacek Gula"
-        password: "123"
+        password: "Passsword123!"
         state: present
         groups:
           - "{{ group_name }}" 
