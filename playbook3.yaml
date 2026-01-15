@@ -1,18 +1,13 @@
 ---
 - name: Playbook 3 - Kopia zapasowa AdGuard Home
-  hosts: agh  # Upewnij się, że ta nazwa grupy pasuje do Twojego inventory w Semaphore
+  hosts: agh  
   become: true
   gather_facts: no
   vars:
-    # Ścieżka instalacji AdGuard Home (dostosuj, jeśli zainstalowałeś w innym miejscu)
     agh_dir: "/adguardhome/AdGuardHome"
-    # Katalog tymczasowy na serwerze AGH
     remote_temp_dir: "/tmp/agh_backups"
-    # Katalog docelowy na serwerze Ansible (gdzie mają trafiać kopie)
     local_backup_dir: "/tmp/agh_remote_backups"
-    # Format nazwy pliku z datą
     backup_filename: "agh_backup_{{ ansible_date_time.date }}_{{ ansible_date_time.hour }}{{ ansible_date_time.minute }}.tar.gz"
-
   tasks:
     - name: Sprawdź czy host jest dostępny (port 22)
       delegate_to: localhost
@@ -23,37 +18,35 @@
         state: started
       ignore_errors: yes
       register: host_status
-      become: no # Sprawdzanie portu nie wymaga roota na localhost
-
-    # 2. Powiadomienie o braku połączenia (uruchamiane na localhost)
+      become: no 
     - name: Powiadomienie o BŁĘDZIE - Host niedostępny (Discord)
       community.general.discord:
         webhook_id: "{{ discord_id }}"
         webhook_token: "{{ discord_token }}"
         username: Semaphore
-        content: "❌ [CRITICAL] Nie można połączyć się z {{ inventory_hostname }}. Serwer jest wyłączony lub sieć nie działa."
+        content: "Nie można połączyć się z {{ inventory_hostname }}."
       delegate_to: localhost
       become: no
       when: host_status.failed
-    - name: Zakończ playbook jeśli host nie odpowiada
+    - name: Zakończ jeśli host nie odpowiada
       meta: end_play
       when: host_status.failed  
-    - name: Zbierz fakty o systemie (ręcznie)
+    - name: Zbierz fakty o systemie
       setup:
-    - name: Rozpoczęcie procedury backupu (Block)
+    - name: Backup
       block:
-        - name: Upewnij się, że katalog tymczasowy istnieje na serwerze AGH
+        - name: Upewnienie się, czy katalog tymczasowy istnieje na serwerze AGH
           ansible.builtin.file:
             path: "{{ remote_temp_dir }}"
             state: directory
             mode: '0700'
 
-        - name: Zatrzymaj usługę AdGuard Home (dla spójności danych)
+        - name: Zatrzymanie usługi AdGuard Home 
           ansible.builtin.service:
             name: AdGuardHome
             state: stopped
 
-        - name: Stwórz archiwum z plikami konfiguracyjnymi i danymi
+        - name: Stworzenie archiwum z plikami konfiguracyjnymi i danymi
           community.general.archive:
             path:
               - "{{ agh_dir }}/AdGuardHome.yaml"
@@ -61,26 +54,26 @@
             dest: "{{ remote_temp_dir }}/{{ backup_filename }}"
             format: gz
 
-        - name: Uruchom ponownie usługę AdGuard Home
+        - name: Ponowne uruchomienie usługi
           ansible.builtin.service:
             name: AdGuardHome
             state: started
 
-        - name: Pobierz kopię zapasową na serwer Ansible (Control Node)
+        - name: Pobranie kopii zapasowej na serwer Ansible
           ansible.builtin.fetch:
             src: "{{ remote_temp_dir }}/{{ backup_filename }}"
             dest: "{{ local_backup_dir }}/"
             flat: yes
 
-        - name: Usuń tymczasowe archiwum z serwera AGH (sprzątanie)
+        - name: Usuniećie tymczasowego archiwum z serwera AGH
           ansible.builtin.file:
             path: "{{ remote_temp_dir }}/{{ backup_filename }}"
             state: absent
 
       rescue:
-        - name: Powiadomienie o BŁĘDZIE (Discord) - wymagane przez zadanie
+        - name: Powiadomienie o błedzie
           community.general.discord:
             webhook_id: "{{ discord_id }}"
             webhook_token: "{{ discord_token }}"
             username: Semaphore
-            content: "BŁĄD: Nie udało się wykonać kopii zapasowej AdGuard Home na serwerze {{ inventory_hostname }}."
+            content: "Nie udało się wykonać kopii zapasowej"
