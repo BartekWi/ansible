@@ -134,11 +134,31 @@
         Exit 0
       register: winget_install
       changed_when: "'Instalowanie' in winget_install.stdout"
-    - name: Dodanie katalogu BIND do zmiennej systemowej PATH
+    - name: Znajdź ścieżkę do dig.exe w AppData
+      ansible.windows.win_shell: |
+        # Szukamy tylko wewnątrz folderu pakietów Winget w AppData
+        # To znacznie szybsze i omija problemy z uprawnieniami na dysku C:
+        $searchPath = "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
+        
+        # Szukamy dig.exe rekurencyjnie w tym konkretnym folderze
+        $digFile = Get-ChildItem -Path $searchPath -Filter "dig.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        
+        if ($digFile) {
+            # Zwracamy samą ścieżkę do katalogu (bez nazwy pliku)
+            Write-Host $digFile.DirectoryName
+        } else {
+            Write-Error "Nie znaleziono pliku dig.exe w $searchPath"
+            Exit 1
+        }
+      register: dig_location
+      changed_when: false
+
+    - name: Dodaj znaleziony folder do systemowej zmiennej PATH
       ansible.windows.win_path:
-        elements: "C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Packages\ISC.Bind_Microsoft.Winget.Source_8wekyb3d8bbwe\dig.exe"
+        elements:
+          - "{{ dig_location.stdout | trim }}"
         state: present
-        scope: machine  
+        scope: machine
     - name: Blokada usuwania drukarek
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer
