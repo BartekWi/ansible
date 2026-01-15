@@ -8,7 +8,6 @@
     group_name: "Kierownicy_Wiecek"
     share_name: "Projekty_Wiecek"
     share_path: "F:\\Projekty"
-    bind_path: "C:\\Users\\Administrator\\AppData\\Local\\Microsoft\\WinGet\\"
   tasks:
    
     - name: Konfiguracja Puli Dyskowej
@@ -126,7 +125,7 @@
                 Write-Host "$app jest już zainstalowany."
             } else {
                 Write-Host "Instalowanie $app"
-                winget install --id $app -e --source winget --accept-package-agreements --accept-source-agreements
+                winget install --id $app --scope machine -e --source winget --accept-package-agreements --accept-source-agreements
             }
         }
         
@@ -137,7 +136,7 @@
    
     - name: Dodaj znaleziony folder do systemowej zmiennej PATH
       ansible.windows.win_path:
-        elements: "{{ bind_path }}Packages\\ISC.Bind_Microsoft.Winget.Source_8wekyb3d8bbwe"
+        elements: 'C:\Program Files\ISC BIND 9\bin'
         state: present
         scope: machine
     - name: Blokada usuwania drukarek
