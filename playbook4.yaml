@@ -78,15 +78,21 @@
         path: "{{ share_path }}"
         state: directory
 
-    - name: Udostępnienie katalogu
+    - name: Udostępnij katalog jako '{{ share_name }}' z uprawnieniami
       ansible.windows.win_share:
         name: "{{ share_name }}"
         path: "{{ share_path }}"
         list: yes
-        full_control: 
-          - Administrators
-          - "{{ group_name }}"
-
+        full: "Administrators,{{ group_name }}" # Pełny dostęp dla Adminów i Kierowników
+        read: "" # Brak dostępu dla innych (domyślnie Everyone ma read, tutaj usuwamy)
+        state: present
+    - name: Ustaw uprawnienia NTFS dla katalogu Projekty
+      ansible.windows.win_acl:
+        path: "{{ share_path }}"
+        user: "{{ group_name }}"
+        rights: FullControl
+        type: allow
+        state: present
     - name: Instalacja aplikacji
       ansible.windows.win_shell: |
         $apps = @(
