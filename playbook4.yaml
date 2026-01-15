@@ -134,6 +134,11 @@
         Exit 0
       register: winget_install
       changed_when: "'Instalowanie' in winget_install.stdout"
+    - name: Dodanie katalogu BIND do zmiennej systemowej PATH
+      ansible.windows.win_path:
+        elements: 'C:\Program Files\ISC BIND 9\bin'
+        state: present
+        scope: machine  
     - name: Blokada usuwania drukarek
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer
