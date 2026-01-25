@@ -1,0 +1,14 @@
+servers:
+  children:
+    serwery:
+      hosts:
+        windows:
+          ansible_host: 192.168.0.153
+          ansible_user: Administrator
+          ansible_connection: ssh
+          ansible_shell_type: powershell
+          ansible_become: no
+          
+
+        agh:
+          ansible_host: 192.168.0.243
